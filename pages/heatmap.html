@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Traffic Heatmap - Bengaluru</title>
+
+    <!-- Leaflet.js and Plugins -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans:wght@400;500;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Inter', 'Noto Sans', sans-serif; 
+            background-color: #f8fafc;
+            color: #1e293b; 
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .controls-section {
+            padding: 1rem 2rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .metrics-section {
+            padding: 0 2rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .map-section {
+            flex: 1;
+            padding: 0 2rem 2rem 2rem;
+            background: #f8fafc;
+            min-height: 500px;
+        }
+        
+        .section-title { 
+            color: #1e293b; 
+            font-size: 24px; 
+            font-weight: 700; 
+            line-height: 1.3; 
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .metric-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .metric-card { 
+            background: white; 
+            padding: 1.5rem; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0; 
+            text-align: left; 
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .metric-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+        }
+        
+        .metric-value { 
+            font-size: 2rem; 
+            font-weight: 700; 
+            color: #1e293b; 
+            margin: 0 0 0.25rem 0; 
+        }
+        
+        .metric-label { 
+            font-size: 0.875rem; 
+            color: #64748b; 
+            margin: 0; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            font-weight: 500;
+        }
+        
+        .status-indicator { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-size: 0.875rem; 
+            font-weight: 600; 
+            margin-bottom: 8px; 
+            width: fit-content; 
+        }
+        
+        .status-live { 
+            background-color: #dcfce7; 
+            color: #166534; 
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status-historical { 
+            background-color: #fef3c7; 
+            color: #92400e; 
+            border: 1px solid #fde68a;
+        }
+        
+        .status-dot { 
+            width: 8px; 
+            height: 8px; 
+            border-radius: 50%; 
+            background-color: currentColor; 
+            animation: pulse 2s infinite; 
+        }
+        
+        @keyframes pulse { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.6; } 
+        }
+        
+        .search-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .search-container { 
+            flex: 1;
+            max-width: 400px;
+            position: relative; 
+        }
+        
+        .search-input-container { 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+        }
+        
+        .search-icon { 
+            position: absolute; 
+            left: 12px; 
+            color: #64748b; 
+            z-index: 2; 
+            font-size: 16px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            pointer-events: none; 
+        }
+        
+        .search-input { 
+            width: 100%; 
+            padding: 10px 16px 10px 40px; 
+            font-size: 14px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            font-family: 'Inter', sans-serif; 
+            font-weight: 500; 
+            transition: all 0.2s ease; 
+            color: #1e293b; 
+            background: white;
+        }
+        
+        .search-input:focus { 
+            outline: none; 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); 
+        }
+        
+        .search-input::placeholder { 
+            color: #9ca3af; 
+            font-weight: 400; 
+        }
+        
+        .data-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .switch input { 
+            opacity: 0; 
+            width: 0; 
+            height: 0; 
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; 
+            left: 0;
+            right: 0; 
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; 
+            width: 18px;
+            left: 3px; 
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        .search-results-container { 
+            margin-top: 1rem;
+            min-height: 50px;
+        }
+        
+        .search-results-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+            gap: 1rem; 
+            margin-top: 1rem; 
+        }
+        
+        .result-card { 
+            background: white; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
+            cursor: pointer; 
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .result-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+            border-color: #3b82f6; 
+        }
+        
+        .result-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            margin-bottom: 0.75rem; 
+        }
+        
+        .result-icon { 
+            font-size: 16px; 
+            color: #64748b;
+        }
+        
+        .result-title { 
+            font-weight: 600; 
+            color: #1e293b; 
+            font-size: 15px; 
+            margin: 0; 
+        }
+        
+        .result-details-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 0.75rem; 
+            margin-top: 0.75rem; 
+        }
+        
+        .detail-item { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 2px; 
+        }
+        
+        .detail-label { 
+            font-size: 11px; 
+            color: #64748b; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            font-weight: 600; 
+        }
+        
+        .detail-value { 
+            font-size: 13px; 
+            color: #1e293b; 
+            font-weight: 600; 
+        }
+        
+        .traffic-badge { 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 11px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            width: fit-content; 
+        }
+        
+        .badge-low { 
+            background-color: #dcfce7; 
+            color: #166534; 
+        }
+        
+        .badge-medium { 
+            background-color: #fef3c7; 
+            color: #92400e; 
+        }
+        
+        .badge-high { 
+            background-color: #fee2e2; 
+            color: #991b1b; 
+        }
+        
+        .custom-header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            border-bottom: 1px solid #d1d5db; 
+            padding: 0.75rem 2.5rem; 
+            background-color: white; 
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .header-logo { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem; 
+            color: #181411; 
+        }
+        
+        .logo-title { 
+            color: #181411; 
+            font-size: 18px; 
+            font-weight: 700; 
+            margin: 0; 
+            letter-spacing: -0.015em;
+        }
+        
+        .nav-links { 
+            display: flex; 
+            align-items: center; 
+            gap: 2.25rem; 
+            flex: 1;
+            justify-content: flex-end;
+            margin-right: 2rem;
+        }
+        
+        .nav-link { 
+            color: #181411; 
+            font-size: 14px; 
+            font-weight: 500; 
+            text-decoration: none; 
+            cursor: pointer; 
+            padding: 0.5rem 0.75rem; 
+            border-radius: 6px; 
+            transition: all 0.2s; 
+        }
+        
+        .nav-link.active { 
+            color: #181411; 
+            font-weight: 500; 
+        }
+        
+        .nav-link:hover { 
+            background-color: #f3f4f6; 
+        }
+        
+        .header-buttons { 
+            display: flex; 
+            gap: 1rem; 
+        }
+        
+        .theme-btn { 
+            background-color: #f5f2f0; 
+            color: #181411; 
+            border: none; 
+            border-radius: 9999px; 
+            padding: 0.5rem 0.625rem; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.015em;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            min-width: 84px;
+            height: 2.5rem;
+        }
+        
+        .theme-btn:hover {
+            background-color: #e5e7eb;
+        }
+
+        #map { 
+            width: 100%; 
+            height: 70vh; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .leaflet-popup-content-wrapper { 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .leaflet-popup-content { 
+            margin: 12px; 
+        }
+        
+        .loading-spinner { 
+            animation: spin 1s linear infinite; 
+            display: inline-block; 
+            margin-right: 8px; 
+        }
+        
+        @keyframes spin { 
+            from { transform: rotate(0deg); } 
+            to { transform: rotate(360deg); } 
+        }
+        
+        .alert-banner {
+            margin: 1rem 0;
+            padding: 0.75rem 1rem;
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            color: #b91c1c;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .footer {
+            background: white;
+            color: #8a7260;
+            margin-top: 2rem;
+            padding: 2.5rem 0;
+            text-align: center;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .footer-section {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+        
+        .footer-github-link {
+            color: #8a7260;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.5;
+            min-width: 10rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: opacity 0.2s ease;
+        }
+        
+        .footer-github-link:hover {
+            opacity: 0.75;
+        }
+        
+        .footer-social {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        .footer-social-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #8a7260;
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+        
+        .footer-social-link:hover {
+            opacity: 0.75;
+        }
+        
+        .footer-description {
+            color: #8a7260;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .heatmap-type-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .map-view-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .route-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .traffic-route {
+            stroke-width: 4;
+            stroke-opacity: 0.8;
+            fill: none;
+        }
+        
+        .route-low { stroke: #22c55e; }
+        .route-medium { stroke: #eab308; }
+        .route-high { stroke: #ef4444; }
+        
+        .detailed-marker {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 10px;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .detailed-marker.large {
+            width: 24px;
+            height: 24px;
+            font-size: 11px;
+        }
+        
+        .detailed-marker.medium {
+            width: 18px;
+            height: 18px;
+            font-size: 9px;
+        }
+        
+        .detailed-marker.small {
+            width: 14px;
+            height: 14px;
+            font-size: 8px;
+        }
+        
+        .heatmap-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+        }
+        
+        .heatmap-select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 160px;
+        }
+        
+        .heatmap-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .voice-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .voice-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            color: #374151;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            min-width: 100px;
+        }
+        
+        .voice-btn:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+        
+        .voice-btn.listening {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .voice-btn.processing {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            color: #1d4ed8;
+        }
+        
+        .voice-btn.speaking {
+            background: #dcfce7;
+            border-color: #22c55e;
+            color: #15803d;
+        }
+        
+        .voice-status {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+            min-width: 120px;
+        }
+        
+        .voice-result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 13px;
+            color: #1e293b;
+        }
+        
+        .voice-query {
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 0.5rem;
+        }
+        
+        @keyframes pulse-mic {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .voice-btn.listening svg {
+            animation: pulse-mic 1s infinite;
+        }
+        
+        @media (max-width: 768px) {
+            .search-controls {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .heatmap-type-selector {
+                justify-content: center;
+            }
+            
+            .footer-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="custom-header">
+            <div class="header-logo">
+                <div style="width: 16px; height: 16px;">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                    </svg>
+                </div>
+                <h2 class="logo-title">Bengaluru Traffic Insights</h2>
+            </div>
+            <div class="nav-links">
+                <a href="/index.html" class="nav-link">Home</a>
+                <a href="#" class="nav-link active">Real-Time Traffic</a>
+                <a href="#" class="nav-link">Traffic Analysis</a>
+            </div>
+            <div class="header-buttons">
+                <button class="theme-btn" id="theme-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                        <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                        <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88A104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                    </svg>
+                    <span id="theme-text">Theme</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="controls-section">
+                <div class="search-controls">
+                    <div class="search-container">
+                        <div class="search-input-container">
+                            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="location-search" class="search-input" placeholder="Search locations in Bengaluru">
+                        </div>
+                    </div>
+                    
+                    <div class="data-toggle">
+                        <span class="toggle-label">Real-time</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-data">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Historical</span>
+                    </div>
+                    
+                    <div class="heatmap-type-selector">
+                        <label class="heatmap-label">Heatmap Type:</label>
+                        <select id="heatmap-type" class="heatmap-select">
+                            <option value="traffic">Traffic Congestion</option>
+                            <option value="speed">Speed Analysis</option>
+                            <option value="incidents">Incident Density</option>
+                            <option value="areas">Area Coverage</option>
+                        </select>
+                    </div>
+                    
+                    <div class="map-view-toggle">
+                        <span class="toggle-label">Heatmap</span>
+                        <label class="switch">
+                            <input type="checkbox" id="map-view-toggle">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Detailed</span>
+                    </div>
+                    
+                    <div class="voice-controls">
+                        <button id="voice-btn" class="voice-btn" title="Ask about traffic conditions">
+                            <svg id="voice-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256">
+                                <path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V232a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"></path>
+                            </svg>
+                            <span id="voice-text">Ask Voice</span>
+                        </button>
+                        <div id="voice-status" class="voice-status"></div>
+                    </div>
+                </div>
+
+                <div id="search-results" class="search-results-container"></div>
+            </div>
+
+            <div class="metrics-section">
+                <div id="alert-banner" class="alert-banner hidden">
+                    High congestion detected in multiple areas. Consider alternative routes.
+                </div>
+                
+                <div id="metrics-container" class="metric-container">
+                    <!-- Metrics will be populated here -->
+                </div>
+            </div>
+
+            <div class="map-section">
+                <h2 class="section-title" id="traffic-title">Real-Time Traffic Analysis</h2>
+                <div id="map"></div>
+            </div>
+        </div>
+        
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <a href="#" class="footer-github-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                            <path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"></path>
+                        </svg>
+                        GithubLogo
+                    </a>
+                </div>
+                
+                <div class="footer-social">
+                    <a href="#" class="footer-social-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                            <path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"></path>
+                        </svg>
+                    </a>
+                    <a href="#" class="footer-social-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                            <path d="M216,24H40A16,16,0,0,0,24,40V216a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V40A16,16,0,0,0,216,24Zm0,192H40V40H216V216ZM96,112v64a8,8,0,0,1-16,0V112a8,8,0,0,1,16,0Zm88,28v36a8,8,0,0,1-16,0V140a20,20,0,0,0-40,0v36a8,8,0,0,1-16,0V112a8,8,0,0,1,15.79-1.78A36,36,0,0,1,184,140ZM100,84A12,12,0,1,1,88,72,12,12,0,0,1,100,84Z"></path>
+                        </svg>
+                    </a>
+                </div>
+                
+                <p class="footer-description">This project is proudly open-source. Contributions welcome!</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            BANGALORE_CENTER: [12.9716, 77.5946],
+            DEFAULT_ZOOM: 11,
+            REFRESH_INTERVAL: 300000,
+            HISTORICAL_VARIANCE: {
+                speed: 0.25,
+                congestion: 0.3,
+                temporal: 0.2
+            }
+        };
+
+        const KEY_LOCATIONS = {
+            "Indiranagar": [12.9784, 77.6408], "Whitefield": [12.9698, 77.7499],
+            "Koramangala": [12.9352, 77.6245], "M.G. Road": [12.9759, 77.6068],
+            "Jayanagar": [12.9308, 77.5838], "Hebbal": [13.0359, 77.5970],
+            "Yeshwanthpur": [13.0229, 77.5549], "Silk Board": [12.9177, 77.6237],
+            "Banaswadi": [13.0216, 77.6396], "Banashankari": [12.9221, 77.5503],
+            "J.P. Nagar": [12.9121, 77.5848], "Electronic City": [12.8446, 77.6605],
+            "Rajajinagar": [13.0008, 77.5553], "Ulsoor": [12.9753, 77.6296],
+            "HSR Layout": [12.9081, 77.6416], "Malleshwaram": [13.0147, 77.5679],
+            "Bannerghatta Road": [12.9070, 77.5938], "Devanahalli": [13.2323, 77.7157],
+            "Magadi Road": [13.0123, 77.5210], "Yelahanka": [13.0840, 77.5946],
+            "Marathahalli": [12.9569, 77.7011], "Bellandur": [12.9358, 77.6762],
+            "BTM Layout": [12.9166, 77.6101], "Domlur": [12.9611, 77.6387],
+            "Peenya": [13.0384, 77.5166], "Sarjapur Road": [12.9116, 77.6870],
+            "RV College of Engineering": [12.9279, 77.5838]
+
+        };
+
+        // Global variables
+        let map, heatLayer, markerClusterGroup, refreshInterval, routeLayer;
+        let currentData = [];
+        let currentHeatmapType = 'traffic';
+        let isListening = false;
+        let recognition = null;
+        let speechSynthesis = window.speechSynthesis;
+        let isDetailedView = false;
+
+        // Traffic App Class
+        class TrafficApp {
+            constructor() {
+                this.init();
+            }
+
+            async init() {
+                this.initMap();
+                this.initVoice();
+                this.initTheme();
+                this.setupEventListeners();
+                
+                // Load real-time data initially
+                await this.loadData(true);
+            }
+
+            initMap() {
+                map = L.map('map', {
+                    center: CONFIG.BANGALORE_CENTER,
+                    zoom: CONFIG.DEFAULT_ZOOM,
+                    zoomControl: false
+                });
+
+                // Add zoom control to bottom right
+                L.control.zoom({
+                    position: 'bottomleft'
+                }).addTo(map);
+
+                // Add tile layer
+                const lightTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                });
+                
+                const darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                });
+
+                lightTile.addTo(map);
+                L.control.layers({ "Light": lightTile, "Dark": darkTile }, {}, { position: 'topright' }).addTo(map);
+
+                // Initialize data layers
+                heatLayer = L.heatLayer([], { 
+                    radius: 25, 
+                    blur: 20, 
+                    maxZoom: 15,
+                    gradient: this.getHeatmapGradient('traffic')
+                });
+                
+                markerClusterGroup = L.markerClusterGroup({
+                    chunkedLoading: true,
+                    chunkInterval: 500
+                });
+                
+                // Initialize route layer for detailed view
+                routeLayer = L.layerGroup();
+
+                // Add legend
+                this.addLegend();
+                this.addLocateControl();
+            }
+
+            getHeatmapGradient(type) {
+                const gradients = {
+                    traffic: {
+                        0.0: '#3b82f6',
+                        0.2: '#06b6d4', 
+                        0.4: '#10b981', 
+                        0.6: '#f59e0b', 
+                        0.8: '#f97316',
+                        1.0: '#ef4444'
+                    },
+                    speed: {
+                        0.0: '#ef4444',
+                        0.2: '#f97316',
+                        0.4: '#f59e0b',
+                        0.6: '#10b981',
+                        0.8: '#06b6d4',
+                        1.0: '#3b82f6'
+                    },
+                    incidents: {
+                        0.0: '#f1f5f9',
+                        0.3: '#fbbf24',
+                        0.6: '#f97316',
+                        0.8: '#ef4444',
+                        1.0: '#991b1b'
+                    },
+                    areas: {
+                        0.0: '#ecfdf5',
+                        0.3: '#86efac',
+                        0.6: '#4ade80',
+                        0.8: '#22c55e',
+                        1.0: '#16a34a'
+                    }
+                };
+                return gradients[type] || gradients.traffic;
+            }
+
+            addLegend() {
+                const legend = L.control({ position: 'bottomright' });
+                legend.onAdd = () => {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    this.updateLegendContent(div, 'traffic');
+                    return div;
+                };
+                legend.addTo(map);
+                this.legendControl = legend;
+            }
+
+            updateLegendContent(div, type) {
+                const legendConfigs = {
+                    traffic: {
+                        title: 'Traffic Congestion',
+                        items: [
+                            { color: '#22c55e', label: 'Low' },
+                            { color: '#eab308', label: 'Medium' },
+                            { color: '#ef4444', label: 'High' }
+                        ]
+                    },
+                    speed: {
+                        title: 'Speed Analysis',
+                        items: [
+                            { color: '#3b82f6', label: 'Fast' },
+                            { color: '#10b981', label: 'Moderate' },
+                            { color: '#ef4444', label: 'Slow' }
+                        ]
+                    },
+                    incidents: {
+                        title: 'Incident Density',
+                        items: [
+                            { color: '#f1f5f9', label: 'None', border: true },
+                            { color: '#fbbf24', label: 'Low' },
+                            { color: '#991b1b', label: 'High' }
+                        ]
+                    },
+                    areas: {
+                        title: 'Area Coverage',
+                        items: [
+                            { color: '#ecfdf5', label: 'Light', border: true },
+                            { color: '#4ade80', label: 'Medium' },
+                            { color: '#16a34a', label: 'Dense' }
+                        ]
+                    }
+                };
+
+                const config = legendConfigs[type] || legendConfigs.traffic;
+                
+                let itemsHtml = '';
+                config.items.forEach(item => {
+                    const borderStyle = item.border ? 'border: 1px solid #ccc;' : '';
+                    itemsHtml += `
+                        <div style="display: flex; align-items: center; gap: 4px; margin: 2px 0;">
+                            <div style="width: 12px; height: 12px; background: ${item.color}; border-radius: 2px; ${borderStyle}"></div>
+                            <span>${item.label}</span>
+                        </div>
+                    `;
+                });
+
+                div.innerHTML = `
+                    <div style="background: white; padding: 8px; border-radius: 4px; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                        <div style="font-weight: 600; margin-bottom: 4px;">${config.title}</div>
+                        ${itemsHtml}
+                    </div>
+                `;
+            }
+
+            addLocateControl() {
+                const locateControl = L.control({ position: 'topleft' });
+                locateControl.onAdd = function() {
+                    const div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                    div.innerHTML = '<a href="#" title="Find my location" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #374151;">⌖</a>';
+                    div.onclick = function() {
+                        map.locate({ setView: true, maxZoom: 14 });
+                    };
+                    return div;
+                };
+                locateControl.addTo(map);
+
+                map.on('locationfound', function(e) {
+                    L.circleMarker(e.latlng, {
+                        radius: 8,
+                        fillColor: "#3b82f6",
+                        color: "#fff",
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map).bindPopup("Your location").openPopup();
+                });
+            }
+
+            initVoice() {
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    recognition = new SpeechRecognition();
+                    
+                    recognition.continuous = false;
+                    recognition.interimResults = false;
+                    recognition.lang = 'en-US';
+                    
+                    recognition.onstart = () => {
+                        isListening = true;
+                        this.updateVoiceStatus('listening', 'Listening...', 'Speak now about traffic conditions');
+                    };
+                    
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        this.updateVoiceStatus('processing', 'Processing...', `Heard: "${transcript}"`);
+                        this.processVoiceQuery(transcript);
+                    };
+                    
+                    recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        this.resetVoiceButton();
+                        document.getElementById('voice-status').textContent = 'Error: ' + event.error;
+                    };
+                    
+                    recognition.onend = () => {
+                        isListening = false;
+                    };
+                } else {
+                    document.getElementById('voice-btn').disabled = true;
+                    document.getElementById('voice-status').textContent = 'Speech recognition not supported';
+                }
+            }
+
+            initTheme() {
+                const themeToggleBtn = document.getElementById('theme-toggle');
+                const html = document.documentElement;
+                const sunIcon = document.getElementById('sun-icon');
+                const moonIcon = document.getElementById('moon-icon');
+                const themeText = document.getElementById('theme-text');
+
+                function updateThemeIcon(isDark) {
+                    if (isDark) {
+                        sunIcon.classList.add('hidden');
+                        moonIcon.classList.remove('hidden');
+                        themeText.textContent = 'Light';
+                    } else {
+                        sunIcon.classList.remove('hidden');
+                        moonIcon.classList.add('hidden');
+                        themeText.textContent = 'Dark';
+                    }
+                }
+
+                const isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                
+                if (isDarkMode) {
+                    html.classList.add('dark');
+                } else {
+                    html.classList.remove('dark');
+                }
+                
+                updateThemeIcon(isDarkMode);
+
+                themeToggleBtn.addEventListener('click', () => {
+                    const isCurrentlyDark = html.classList.contains('dark');
+                    
+                    if (isCurrentlyDark) {
+                        html.classList.remove('dark');
+                        localStorage.setItem('theme', 'light');
+                        updateThemeIcon(false);
+                    } else {
+                        html.classList.add('dark');
+                        localStorage.setItem('theme', 'dark');
+                        updateThemeIcon(true);
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                // Data toggle
+                document.getElementById('toggle-data').addEventListener('change', (e) => {
+                    const isRealTime = !e.target.checked;
+                    this.loadData(isRealTime);
+                });
+
+                // Heatmap type selector
+                document.getElementById('heatmap-type').addEventListener('change', (e) => {
+                    currentHeatmapType = e.target.value;
+                    this.updateHeatmapGradient();
+                    this.updateMap();
+                    this.updateLegendContent(document.querySelector('.info.legend'), currentHeatmapType);
+                });
+
+                // Search functionality
+                const searchInput = document.getElementById('location-search');
+                let searchTimeout;
+                
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        const query = e.target.value;
+                        if (query.length >= 2) {
+                            const results = this.searchLocations(query);
+                            this.displaySearchResults(results);
+                        } else {
+                            document.getElementById('search-results').innerHTML = '';
+                        }
+                    }, 300);
+                });
+
+                // Voice button
+                document.getElementById('voice-btn').addEventListener('click', () => {
+                    this.toggleVoiceRecognition();
+                });
+                
+                // Map view toggle
+                document.getElementById('map-view-toggle').addEventListener('change', (e) => {
+                    isDetailedView = e.target.checked;
+                    this.updateMap();
+                    this.updateMapTitle();
+                });
+            }
+
+            updateHeatmapGradient() {
+                if (heatLayer) {
+                    heatLayer.setOptions({
+                        gradient: this.getHeatmapGradient(currentHeatmapType)
+                    });
+                }
+            }
+
+            updateVoiceStatus(state, buttonText, statusText) {
+                const voiceBtn = document.getElementById('voice-btn');
+                const voiceText = document.getElementById('voice-text');
+                const voiceStatus = document.getElementById('voice-status');
+                
+                voiceBtn.classList.remove('listening', 'processing', 'speaking');
+                
+                if (state !== 'idle') {
+                    voiceBtn.classList.add(state);
+                }
+                
+                voiceText.textContent = buttonText;
+                voiceStatus.textContent = statusText;
+            }
+
+            toggleVoiceRecognition() {
+                if (isListening) {
+                    recognition.stop();
+                    this.resetVoiceButton();
+                } else {
+                    recognition.start();
+                }
+            }
+
+            resetVoiceButton() {
+                const voiceBtn = document.getElementById('voice-btn');
+                const voiceText = document.getElementById('voice-text');
+                const voiceStatus = document.getElementById('voice-status');
+                
+                voiceBtn.classList.remove('listening', 'processing', 'speaking');
+                voiceText.textContent = 'Ask Voice';
+                voiceStatus.textContent = '';
+                isListening = false;
+            }
+
+            processVoiceQuery(query) {
+                try {
+                    const queryResult = this.analyzeTrafficQuery(query);
+                    
+                    if (queryResult.location) {
+                        const location = queryResult.location;
+                        map.setView([location.lat, location.lon], 14);
+                        
+                        const responseText = this.formatTrafficResponse(queryResult);
+                        this.showVoiceResponse(query, responseText);
+                        this.speakResponse(responseText);
+                    } else {
+                        const fallbackResponse = "I couldn't find that location. Try asking about areas like Koramangala, Indiranagar, or Whitefield.";
+                        this.showVoiceResponse(query, fallbackResponse);
+                        this.speakResponse(fallbackResponse);
+                    }
+                } catch (error) {
+                    console.error('Error processing voice query:', error);
+                    const errorResponse = "Sorry, I couldn't process your request. Please try again.";
+                    this.showVoiceResponse(query, errorResponse);
+                    this.speakResponse(errorResponse);
+                }
+            }
+
+            analyzeTrafficQuery(query) {
+                const queryLower = query.toLowerCase();
+                let foundLocation = null;
+                let locationData = null;
+                
+                for (const [name, [lat, lon]] of Object.entries(KEY_LOCATIONS)) {
+                    if (queryLower.includes(name.toLowerCase())) {
+                        foundLocation = { name, lat, lon };
+                        break;
+                    }
+                }
+                
+                if (foundLocation) {
+                    locationData = this.findNearestTrafficData(foundLocation.lat, foundLocation.lon);
+                }
+                
+                return {
+                    query: query,
+                    location: foundLocation,
+                    data: locationData,
+                    queryType: this.determineQueryType(queryLower)
+                };
+            }
+
+            findNearestTrafficData(lat, lon) {
+                let nearest = null;
+                let minDistance = Infinity;
+                
+                currentData.forEach(point => {
+                    const distance = Math.abs(point.latitude - lat) + Math.abs(point.longitude - lon);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearest = point;
+                    }
+                });
+                
+                return nearest;
+            }
+
+            determineQueryType(query) {
+                if (query.includes('speed')) return 'speed';
+                if (query.includes('traffic') || query.includes('congestion')) return 'traffic';
+                if (query.includes('incident') || query.includes('accident')) return 'incidents';
+                return 'general';
+            }
+
+            formatTrafficResponse(queryResult) {
+                const { location, data, queryType } = queryResult;
+                
+                if (!data) {
+                    return `I don't have current traffic data for ${location.name}. Please try another location.`;
+                }
+                
+                const congestionLevel = data.congestion < 0.3 ? 'light' : 
+                                       data.congestion < 0.6 ? 'moderate' : 'heavy';
+                
+                let responseText = `Traffic conditions near ${location.name}: `;
+                
+                switch (queryType) {
+                    case 'speed':
+                        responseText += `Current average speed is ${data.currentSpeed.toFixed(0)} kilometers per hour.`;
+                        break;
+                    case 'traffic':
+                    case 'general':
+                        responseText += `There is ${congestionLevel} traffic with ${data.congestion > 0.6 ? 'significant' : 'manageable'} congestion. `;
+                        responseText += `Average speed is ${data.currentSpeed.toFixed(0)} kilometers per hour.`;
+                        break;
+                    case 'incidents':
+                        responseText += `${data.incidents === 0 ? 'No incidents' : data.incidents + ' incident' + (data.incidents > 1 ? 's' : '')} reported in this area.`;
+                        break;
+                }
+                
+                return responseText;
+            }
+
+            showVoiceResponse(query, response) {
+                const searchResults = document.getElementById('search-results');
+                searchResults.innerHTML = `
+                    <div class="voice-result">
+                        <div class="voice-query">You asked: "${query}"</div>
+                        <div>${response}</div>
+                    </div>
+                `;
+            }
+
+            speakResponse(text) {
+                speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                utterance.volume = 0.8;
+                
+                utterance.onstart = () => {
+                    this.updateVoiceStatus('speaking', 'Speaking...', 'Playing response');
+                };
+                
+                utterance.onend = () => {
+                    this.resetVoiceButton();
+                };
+                
+                speechSynthesis.speak(utterance);
+            }
+
+            async loadData(isRealTime) {
+                this.showLoadingState(isRealTime);
+                
+                try {
+                    let data;
+                    if (isRealTime) {
+                        data = this.generateTrafficData();
+                    } else {
+                        data = this.generateHistoricalData();
+                    }
+                    
+                    // Ensure data is valid
+                    if (!data || !Array.isArray(data) || data.length === 0) {
+                        throw new Error('Invalid data generated');
+                    }
+                    
+                    currentData = data;
+                    this.updateMetrics(data, isRealTime);
+                    this.updateMap();
+                    this.updateTitle(isRealTime);
+                    this.setupAutoRefresh(isRealTime);
+                    
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    this.showErrorState();
+                    
+                    // Fallback - generate basic data
+                    setTimeout(() => {
+                        try {
+                            currentData = this.generateBasicData();
+                            this.updateMetrics(currentData, isRealTime);
+                            this.updateMap();
+                            this.updateTitle(isRealTime);
+                        } catch (fallbackError) {
+                            console.error('Fallback data generation failed:', fallbackError);
+                        }
+                    }, 1000);
+                }
+            }
+
+            showLoadingState(isRealTime) {
+                const container = document.getElementById('metrics-container');
+                container.innerHTML = `
+                    <div class="metric-card">
+                        <p class="metric-value">
+                            <span class="loading-spinner">⟳</span>
+                            Loading...
+                        </p>
+                        <p class="metric-label">${isRealTime ? 'Real-time' : 'Historical'} Data</p>
+                    </div>
+                `;
+            }
+
+            showErrorState() {
+                const container = document.getElementById('metrics-container');
+                container.innerHTML = `
+                    <div class="metric-card">
+                        <p class="metric-value" style="color: #ef4444;">Error</p>
+                        <p class="metric-label">Failed to load data</p>
+                    </div>
+                `;
+            }
+
+            generateTrafficData() {
+                try {
+                    const data = Object.entries(KEY_LOCATIONS).map(([name, [lat, lon]]) => {
+                        const congestion = Math.random();
+                        const baseSpeed = 50;
+                        const currentSpeed = baseSpeed * (1 - congestion * 0.7);
+                        
+                        return {
+                            id: name.toLowerCase().replace(/\s+/g, '_'),
+                            name: name,
+                            latitude: lat,
+                            longitude: lon,
+                            congestion: congestion,
+                            currentSpeed: Math.max(10, currentSpeed),
+                            freeFlowSpeed: baseSpeed,
+                            incidents: Math.floor(Math.random() * 3),
+                            confidence: 0.8 + Math.random() * 0.2,
+                            timestamp: new Date().toISOString(),
+                            source: 'realtime'
+                        };
+                    });
+                    
+                    console.log('Generated traffic data:', data.length, 'locations');
+                    return data;
+                } catch (error) {
+                    console.error('Error generating traffic data:', error);
+                    return this.generateBasicData();
+                }
+            }
+
+            generateHistoricalData() {
+                try {
+                    const data = Object.entries(KEY_LOCATIONS).map(([name, [lat, lon]]) => {
+                        const congestion = 0.3 + Math.random() * 0.4;
+                        const baseSpeed = 45;
+                        const currentSpeed = baseSpeed * (1 - congestion * 0.6);
+                        
+                        return {
+                            id: name.toLowerCase().replace(/\s+/g, '_'),
+                            name: name,
+                            latitude: lat,
+                            longitude: lon,
+                            congestion: congestion,
+                            currentSpeed: Math.max(15, currentSpeed),
+                            freeFlowSpeed: baseSpeed,
+                            incidents: Math.floor(Math.random() * 2),
+                            confidence: 0.75 + Math.random() * 0.2,
+                            timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+                            source: 'historical'
+                        };
+                    });
+                    
+                    console.log('Generated historical data:', data.length, 'locations');
+                    return data;
+                } catch (error) {
+                    console.error('Error generating historical data:', error);
+                    return this.generateBasicData();
+                }
+            }
+
+            generateBasicData() {
+                // Fallback basic data generation
+                const basicLocations = [
+                    { name: "Koramangala", lat: 12.9352, lon: 77.6245 },
+                    { name: "Indiranagar", lat: 12.9784, lon: 77.6408 },
+                    { name: "Whitefield", lat: 12.9698, lon: 77.7499 },
+                    { name: "Electronic City", lat: 12.8446, lon: 77.6605 },
+                    { name: "Hebbal", lat: 13.0359, lon: 77.5970 }
+                ];
+                
+                return basicLocations.map(location => ({
+                    id: location.name.toLowerCase().replace(/\s+/g, '_'),
+                    name: location.name,
+                    latitude: location.lat,
+                    longitude: location.lon,
+                    congestion: 0.4 + Math.random() * 0.3,
+                    currentSpeed: 25 + Math.random() * 25,
+                    freeFlowSpeed: 50,
+                    incidents: Math.floor(Math.random() * 2),
+                    confidence: 0.8,
+                    timestamp: new Date().toISOString(),
+                    source: 'basic'
+                }));
+            }
+
+            updateMetrics(data, isRealTime) {
+                const totalPoints = data.length;
+                const avgCongestion = data.reduce((sum, point) => sum + point.congestion, 0) / totalPoints;
+                const avgSpeed = data.reduce((sum, point) => sum + point.currentSpeed, 0) / totalPoints;
+                const highCongestionCount = data.filter(point => point.congestion > 0.6).length;
+                const avgConfidence = data.reduce((sum, point) => sum + point.confidence, 0) / totalPoints;
+
+                const statusClass = isRealTime ? 'status-live' : 'status-historical';
+                const statusText = isRealTime ? 'Live Traffic Data' : 'Historical Analysis';
+
+                document.getElementById('metrics-container').innerHTML = `
+                    <div class="metric-card">
+                        <div class="status-indicator ${statusClass}">
+                            <div class="status-dot"></div>
+                            ${statusText}
+                        </div>
+                        <p class="metric-label">Data Source</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="metric-value">${(avgCongestion * 100).toFixed(1)}%</p>
+                        <p class="metric-label">Average Congestion</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="metric-value">${avgSpeed.toFixed(1)} km/h</p>
+                        <p class="metric-label">Average Speed</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="metric-value">${highCongestionCount}</p>
+                        <p class="metric-label">High Congestion Areas</p>
+                    </div>
+                    <div class="metric-card">
+                        <p class="metric-value">${(avgConfidence * 100).toFixed(0)}%</p>
+                        <p class="metric-label">Data Confidence</p>
+                    </div>
+                `;
+
+                // Update alert banner
+                const alertBanner = document.getElementById('alert-banner');
+                if (highCongestionCount > 5 || avgCongestion > 0.65) {
+                    alertBanner.classList.remove('hidden');
+                } else {
+                    alertBanner.classList.add('hidden');
+                }
+            }
+
+            updateMap() {
+                try {
+                    if (heatLayer) heatLayer.remove();
+                    if (markerClusterGroup) markerClusterGroup.clearLayers();
+                    if (routeLayer) routeLayer.clearLayers();
+                    
+                    if (!currentData || currentData.length === 0) {
+                        console.warn('No data available for map update');
+                        return;
+                    }
+                    
+                    if (isDetailedView) {
+                        this.updateDetailedMap();
+                    } else {
+                        this.updateHeatmapView();
+                    }
+                    
+                    console.log('Map updated with', currentData.length, 'data points');
+                } catch (error) {
+                    console.error('Error updating map:', error);
+                }
+            }
+            
+            updateHeatmapView() {
+                const heatPoints = [];
+                
+                currentData.forEach(point => {
+                    const { latitude, longitude, congestion, name, currentSpeed, freeFlowSpeed, incidents, confidence, timestamp, source } = point;
+                    
+                    // Validate point data
+                    if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+                        console.warn('Invalid coordinates for:', name);
+                        return;
+                    }
+                    
+                    // Calculate heat value based on heatmap type
+                    let heatValue = 0.5;
+                    switch (currentHeatmapType) {
+                        case 'traffic':
+                            heatValue = congestion || 0.5;
+                            break;
+                        case 'speed':
+                            heatValue = 1 - ((currentSpeed || 30) / (freeFlowSpeed || 50));
+                            break;
+                        case 'incidents':
+                            heatValue = Math.min((incidents || 0) / 3, 1);
+                            break;
+                        case 'areas':
+                            heatValue = (confidence || 0.8) * (congestion || 0.5);
+                            break;
+                    }
+                    
+                    // Add to heatmap
+                    heatPoints.push([latitude, longitude, heatValue]);
+                    
+                    // Determine status and color based on heatmap type
+                    let status, color, bgColor;
+                    
+                    if (currentHeatmapType === 'speed') {
+                        const speedRatio = (currentSpeed || 30) / (freeFlowSpeed || 50);
+                        if (speedRatio > 0.7) {
+                            status = 'Fast';
+                            color = '#166534';
+                            bgColor = '#22c55e';
+                        } else if (speedRatio > 0.4) {
+                            status = 'Moderate';
+                            color = '#92400e';
+                            bgColor = '#eab308';
+                        } else {
+                            status = 'Slow';
+                            color = '#991b1b';
+                            bgColor = '#ef4444';
+                        }
+                    } else if (currentHeatmapType === 'incidents') {
+                        const incidentCount = incidents || 0;
+                        if (incidentCount === 0) {
+                            status = 'None';
+                            color = '#64748b';
+                            bgColor = '#f1f5f9';
+                        } else if (incidentCount === 1) {
+                            status = 'Low';
+                            color = '#92400e';
+                            bgColor = '#fbbf24';
+                        } else {
+                            status = 'High';
+                            color = '#991b1b';
+                            bgColor = '#ef4444';
+                        }
+                    } else if (currentHeatmapType === 'areas') {
+                        const areaValue = (confidence || 0.8) * (congestion || 0.5);
+                        if (areaValue < 0.3) {
+                            status = 'Light';
+                            color = '#166534';
+                            bgColor = '#ecfdf5';
+                        } else if (areaValue < 0.6) {
+                            status = 'Medium';
+                            color = '#166534';
+                            bgColor = '#4ade80';
+                        } else {
+                            status = 'Dense';
+                            color = '#ffffff';
+                            bgColor = '#16a34a';
+                        }
+                    } else {
+                        // Default traffic congestion
+                        const congestionLevel = congestion || 0.5;
+                        if (congestionLevel < 0.3) {
+                            status = 'Low';
+                            color = '#166534';
+                            bgColor = '#22c55e';
+                        } else if (congestionLevel < 0.6) {
+                            status = 'Medium';
+                            color = '#92400e';
+                            bgColor = '#eab308';
+                        } else {
+                            status = 'High';
+                            color = '#991b1b';
+                            bgColor = '#ef4444';
+                        }
+                    }
+                    
+                    // Create enhanced popup
+                    const popupContent = this.createPopupContent(point, status, bgColor, heatValue);
+                    
+                    // Create marker with appropriate styling
+                    const markerHtml = `
+                        <div style="
+                            width: 14px; 
+                            height: 14px; 
+                            background: ${bgColor}; 
+                            border: 2px solid white; 
+                            border-radius: 50%; 
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                            ${source === 'realtime' ? 'animation: pulse 2s infinite;' : ''}
+                            position: relative;
+                            left: -7px;
+                            top: -7px;
+                        "></div>
+                    `;
+                    
+                    const marker = L.marker([latitude, longitude], {
+                        icon: L.divIcon({ html: markerHtml, className: '', iconSize: [14, 14] })
+                    })
+                    .bindPopup(popupContent)
+                    .bindTooltip(`${name}: ${status}`, {
+                        direction: 'top',
+                        offset: [0, -10]
+                    });
+                    
+                    markerClusterGroup.addLayer(marker);
+                });
+
+                // Update heatmap
+                if (heatPoints.length > 0) {
+                    heatLayer.setLatLngs(heatPoints);
+                }
+                
+                // Add layers to map
+                map.addLayer(heatLayer);
+                map.addLayer(markerClusterGroup);
+            }
+            
+            updateDetailedMap() {
+                // Create detailed markers with more information
+                currentData.forEach(point => {
+                    const { latitude, longitude, congestion, name, currentSpeed, incidents, source } = point;
+                    
+                    // Validate point data
+                    if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+                        console.warn('Invalid coordinates for:', name);
+                        return;
+                    }
+                    
+                    const congestionLevel = congestion || 0.5;
+                    
+                    // Determine marker size based on importance/congestion
+                    let markerSize = 'medium';
+                    if (congestionLevel > 0.7) markerSize = 'large';
+                    else if (congestionLevel < 0.3) markerSize = 'small';
+                    
+                    // Determine color
+                    let bgColor;
+                    if (congestionLevel < 0.3) {
+                        bgColor = '#22c55e';
+                    } else if (congestionLevel < 0.6) {
+                        bgColor = '#eab308';
+                    } else {
+                        bgColor = '#ef4444';
+                    }
+                    
+                    // Create detailed marker with speed info
+                    const speedText = Math.round(currentSpeed || 30);
+                    const markerHtml = `
+                        <div class="detailed-marker ${markerSize}" style="
+                            background: ${bgColor}; 
+                            border: 2px solid white; 
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            ${source === 'realtime' ? 'animation: pulse 2s infinite;' : ''}
+                        ">
+                            ${speedText}
+                        </div>
+                    `;
+                    
+                    // Create enhanced popup for detailed view
+                    const popupContent = this.createDetailedPopupContent(point, congestionLevel);
+                    
+                    const marker = L.marker([latitude, longitude], {
+                        icon: L.divIcon({ 
+                            html: markerHtml, 
+                            className: '', 
+                            iconSize: markerSize === 'large' ? [24, 24] : markerSize === 'small' ? [14, 14] : [18, 18]
+                        })
+                    })
+                    .bindPopup(popupContent)
+                    .bindTooltip(`${name}: ${speedText} km/h`, {
+                        direction: 'top',
+                        offset: [0, -15]
+                    });
+                    
+                    markerClusterGroup.addLayer(marker);
+                });
+                
+                // Add route connections between major locations
+                this.addRouteConnections();
+                
+                // Add layers to map
+                map.addLayer(markerClusterGroup);
+                map.addLayer(routeLayer);
+            }
+            
+            addRouteConnections() {
+                // Define major routes between key locations
+                const majorRoutes = [
+                    { from: "Koramangala", to: "Indiranagar", congestion: 0.6 },
+                    { from: "Indiranagar", to: "Whitefield", congestion: 0.7 },
+                    { from: "Koramangala", to: "Electronic City", congestion: 0.8 },
+                    { from: "M.G. Road", to: "Koramangala", congestion: 0.5 },
+                    { from: "Hebbal", to: "Whitefield", congestion: 0.4 },
+                    { from: "Silk Board", to: "Electronic City", congestion: 0.9 },
+                    { from: "Marathahalli", to: "Bellandur", congestion: 0.6 },
+                    { from: "HSR Layout", to: "Koramangala", congestion: 0.5 }
+                ];
+                
+                majorRoutes.forEach(route => {
+                    const fromPoint = this.findLocationCoords(route.from);
+                    const toPoint = this.findLocationCoords(route.to);
+                    
+                    if (fromPoint && toPoint) {
+                        const routeClass = route.congestion < 0.3 ? 'route-low' : 
+                                         route.congestion < 0.6 ? 'route-medium' : 'route-high';
+                        
+                        const routeLine = L.polyline([fromPoint, toPoint], {
+                            className: `traffic-route ${routeClass}`,
+                            weight: 4,
+                            opacity: 0.7
+                        }).bindTooltip(`${route.from} → ${route.to}: ${(route.congestion * 100).toFixed(0)}% congestion`);
+                        
+                        routeLayer.addLayer(routeLine);
+                    }
+                });
+            }
+            
+            findLocationCoords(locationName) {
+                const location = KEY_LOCATIONS[locationName];
+                return location ? [location[0], location[1]] : null;
+            }
+            
+            createPopupContent(point, status, bgColor, heatValue) {
+                const { name, currentSpeed, freeFlowSpeed, incidents, confidence, timestamp, source } = point;
+                
+                let typeSpecificContent = '';
+                switch (currentHeatmapType) {
+                    case 'speed':
+                        typeSpecificContent = `
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600;">Speed Analysis</span>
+                                    <span style="background: ${bgColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                        ${status}
+                                    </span>
+                                </div>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    Current: ${(currentSpeed || 30).toFixed(1)} km/h | Free Flow: ${freeFlowSpeed || 50} km/h
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'incidents':
+                        typeSpecificContent = `
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600;">Incident Report</span>
+                                    <span style="background: ${bgColor}; color: ${status === 'None' ? '#64748b' : 'white'}; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                        ${status}
+                                    </span>
+                                </div>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    ${incidents || 0} active incident${(incidents || 0) !== 1 ? 's' : ''} reported
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'areas':
+                        typeSpecificContent = `
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600;">Area Coverage</span>
+                                    <span style="background: ${bgColor}; color: ${status === 'Light' ? '#166534' : 'white'}; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                        ${status}
+                                    </span>
+                                </div>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    Coverage density: ${(heatValue * 100).toFixed(1)}%
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    default:
+                        typeSpecificContent = `
+                            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600;">Traffic Level</span>
+                                    <span style="background: ${bgColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">
+                                        ${status}
+                                    </span>
+                                </div>
+                                <div style="background: #e2e8f0; height: 6px; border-radius: 3px; margin-bottom: 8px;">
+                                    <div style="width: ${(heatValue * 100).toFixed(0)}%; height: 6px; background: ${bgColor}; border-radius: 3px; transition: width 0.3s ease;"></div>
+                                </div>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    ${(heatValue * 100).toFixed(1)}% congestion level
+                                </div>
+                            </div>
+                        `;
+                }
+                
+                return `
+                    <div style="font-family: 'Inter', sans-serif; min-width: 280px; font-size: 14px;">
+                        <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
+                            <h4 style="margin: 0; color: #1e293b; font-size: 16px; font-weight: 600;">
+                                ${name}
+                            </h4>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                                ${source === 'realtime' ? 'Real-time Traffic Data' : 'Historical Analysis'}
+                            </div>
+                        </div>
+                        
+                        ${typeSpecificContent}
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div>
+                                <div style="font-size: 12px; color: #64748b; margin-bottom: 2px;">Current Speed</div>
+                                <div style="font-weight: 600; color: #1e293b;">${(currentSpeed || 30).toFixed(1)} km/h</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #64748b; margin-bottom: 2px;">Free Flow</div>
+                                <div style="font-weight: 600; color: #1e293b;">${freeFlowSpeed || 50} km/h</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #64748b; margin-bottom: 2px;">Incidents</div>
+                                <div style="font-weight: 600; color: ${(incidents || 0) > 0 ? '#ef4444' : '#22c55e'};">${incidents || 0}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #64748b; margin-bottom: 2px;">Confidence</div>
+                                <div style="font-weight: 600; color: #1e293b;">${((confidence || 0.8) * 100).toFixed(0)}%</div>
+                            </div>
+                        </div>
+                        
+                        <div style="font-size: 11px; color: #9ca3af; text-align: center; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                            Updated: ${new Date(timestamp || Date.now()).toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            createDetailedPopupContent(point, congestionLevel) {
+                const { name, currentSpeed, freeFlowSpeed, incidents, confidence, timestamp, source } = point;
+                
+                return `
+                    <div style="font-family: 'Inter', sans-serif; min-width: 320px; font-size: 14px;">
+                        <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px;">
+                            <h4 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 700;">
+                                📍 ${name}
+                            </h4>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                                ${source === 'realtime' ? ' Live Traffic Data' : ' Historical Analysis'}
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div style="text-align: center; padding: 8px; background: #f8fafc; border-radius: 6px;">
+                                <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${Math.round(currentSpeed || 30)}</div>
+                                <div style="font-size: 10px; color: #64748b;">KM/H</div>
+                            </div>
+                            <div style="text-align: center; padding: 8px; background: #f8fafc; border-radius: 6px;">
+                                <div style="font-size: 20px; font-weight: 700; color: #1e293b;">${Math.round(congestionLevel * 100)}</div>
+                                <div style="font-size: 10px; color: #64748b;">CONGESTION</div>
+                            </div>
+                            <div style="text-align: center; padding: 8px; background: #f8fafc; border-radius: 6px;">
+                                <div style="font-size: 20px; font-weight: 700; color: ${(incidents || 0) > 0 ? '#ef4444' : '#22c55e'};">${incidents || 0}</div>
+                                <div style="font-size: 10px; color: #64748b;">INCIDENTS</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                            <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Traffic Flow Analysis</div>
+                            <div style="font-size: 13px; color: #1e293b;">
+                                ${congestionLevel < 0.3 ? ' Free flowing traffic' : 
+                                  congestionLevel < 0.6 ? ' Moderate congestion' : 
+                                  ' Heavy congestion - consider alternate routes'}
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: #64748b;">Data Confidence: ${((confidence || 0.8) * 100).toFixed(0)}%</span>
+                            <span style="font-size: 12px; color: #64748b;">Updated: ${new Date(timestamp || Date.now()).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            updateMapTitle() {
+                const titleElement = document.getElementById('traffic-title');
+                const isRealTime = !document.getElementById('toggle-data').checked;
+                const viewType = isDetailedView ? 'Detailed' : 'Heatmap';
+                const dataType = isRealTime ? 'Real-Time' : 'Historical';
+                
+                titleElement.textContent = `${dataType} Traffic Analysis - ${viewType} View`;
+            }
+
+            updateTitle(isRealTime) {
+                this.updateMapTitle();
+            }
+
+            setupAutoRefresh(isRealTime) {
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+                
+                if (isRealTime) {
+                    refreshInterval = setInterval(() => {
+                        this.loadData(true);
+                    }, CONFIG.REFRESH_INTERVAL);
+                }
+            }
+
+            searchLocations(query) {
+                if (!query || query.trim().length < 2) return [];
+                
+                const searchTerm = query.trim().toLowerCase();
+                const results = [];
+                
+                // Search in current data
+                currentData.forEach(point => {
+                    if (point.name.toLowerCase().includes(searchTerm)) {
+                        results.push({
+                            ...point,
+                            type: 'traffic_data'
+                        });
+                    }
+                });
+                
+                // Search in key locations not in current data
+                Object.entries(KEY_LOCATIONS).forEach(([name, [lat, lon]]) => {
+                    if (name.toLowerCase().includes(searchTerm) && 
+                        !results.some(r => r.name === name)) {
+                        results.push({
+                            name: name,
+                            latitude: lat,
+                            longitude: lon,
+                            type: 'location'
+                        });
+                    }
+                });
+                
+                return results.slice(0, 6);
+            }
+
+            displaySearchResults(results) {
+                const container = document.getElementById('search-results');
+                
+                if (!results || results.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                let html = '<div class="search-results-grid">';
+                
+                results.forEach(result => {
+                    if (result.type === 'traffic_data') {
+                        const badgeClass = result.congestion < 0.3 ? 'badge-low' : 
+                                         result.congestion < 0.6 ? 'badge-medium' : 'badge-high';
+                        const status = result.congestion < 0.3 ? 'Low' : 
+                                     result.congestion < 0.6 ? 'Medium' : 'High';
+                        
+                        html += `
+                            <div class="result-card" onclick="app.focusLocation(${result.latitude}, ${result.longitude})">
+                                <div class="result-header">
+                                    <span class="result-icon">📍</span>
+                                    <h4 class="result-title">${result.name}</h4>
+                                </div>
+                                <div style="margin: 8px 0;">
+                                    <div class="traffic-badge ${badgeClass}">${status} Traffic</div>
+                                </div>
+                                <div class="result-details-grid">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Speed</div>
+                                        <div class="detail-value">${result.currentSpeed.toFixed(1)} km/h</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Congestion</div>
+                                        <div class="detail-value">${(result.congestion * 100).toFixed(1)}%</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Incidents</div>
+                                        <div class="detail-value">${result.incidents}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Confidence</div>
+                                        <div class="detail-value">${(result.confidence * 100).toFixed(0)}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="result-card" onclick="app.focusLocation(${result.latitude}, ${result.longitude})">
+                                <div class="result-header">
+                                    <span class="result-icon">📍</span>
+                                    <h4 class="result-title">${result.name}</h4>
+                                </div>
+                                <div class="result-details-grid">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Type</div>
+                                        <div class="detail-value">Key Location</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Coordinates</div>
+                                        <div class="detail-value">${result.latitude.toFixed(4)}, ${result.longitude.toFixed(4)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            focusLocation(lat, lon) {
+                map.setView([lat, lon], 15);
+                
+                // Clear search results after focusing
+                setTimeout(() => {
+                    document.getElementById('search-results').innerHTML = '';
+                    document.getElementById('location-search').value = '';
+                }, 1000);
+            }
+        }
+
+        // Initialize the application
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new TrafficApp();
+        });
+    </script>
+</body>
+</html>

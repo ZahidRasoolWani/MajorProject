@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&amp;family=Inter%3Awght%40400%3B500%3B700%3B900&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <title>Vehicle Analytics Dashboard | Bengaluru Traffic Insights</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+     <style> 
+        /* Add fade-in animation for insights */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Enhanced insight cards */
+        .insight-card {
+            transition: all 0.3s ease;
+        }
+        
+        .insight-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        /* White card styling with hover effects */
+        .metric-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-color: #f48733;
+        }
+
+        .dark .metric-card {
+            background: #2a2a2a;
+            border-color: #404040;
+        }
+
+        .dark .metric-card:hover {
+            border-color: #f48733;
+            box-shadow: 0 20px 40px rgba(244, 135, 51, 0.2);
+        }
+
+        /* Chart container styling */
+        .chart-container {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .chart-container:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .chart-container {
+            background: #2a2a2a;
+            border-color: #404040;
+        }
+        </style>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-[#1a1a1a] dark:text-white transition-colors duration-300">
+    <div class="relative flex size-full min-h-screen flex-col bg-gray-50 dark:bg-[#1a1a1a] group/design-root overflow-x-hidden transition-colors duration-300" style='font-family: Inter, "Noto Sans", sans-serif;'>
+        <div class="layout-container flex h-full grow flex-col">
+            <!-- Header -->
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-300 dark:border-gray-600 px-10 py-3 shadow-sm bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="flex items-center gap-4 text-gray-900 dark:text-white">
+                    <div class="size-4">
+                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Bengaluru Traffic Insights</h2>
+                </div>
+                <div class="flex flex-1 justify-end gap-8">
+                    <div class="flex items-center gap-9">
+                        <a class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="/index.html">Home</a>
+                        <a class="text-gray-700 dark:text-gray-300 text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="/pages/heatmap.html">Real-Time Traffic</a>
+                        <a class="text-[#f48733] bg-orange-50 dark:bg-orange-900/20 text-sm font-bold leading-normal px-3 py-2 rounded-md" href="/pages/vehicle2.html">Vehicle Analysis</a>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Theme Toggle Button -->
+                        <button id="theme-toggle" class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                            <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                                <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                                <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88A104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                            </svg>
+                            <span id="theme-text">Theme</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="px-4 w-full flex justify-center py-6 bg-gray-50 dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="layout-content-container flex flex-col w-full flex-1 max-w-7xl">
+                    
+                    <!-- Page Title Section -->
+                    <div class="text-center mb-8">
+                        <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-2">Vehicle Analytics Dashboard</h1>
+                        <p class="text-lg text-gray-600 dark:text-gray-400">Comprehensive analysis and future predictions for Bengaluru's vehicle ecosystem</p>
+                    </div>
+
+                    <!-- Dashboard Controls -->
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 bg-white dark:bg-[#2a2a2a] rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
+                        <div class="flex items-center gap-6">
+                            <div class="flex items-center gap-3">
+                                <label class="text-gray-900 dark:text-white text-sm font-semibold">Analysis Year:</label>
+                                <select id="yearSelector" class="bg-white dark:bg-gray-700 border-2 border-[#f48733] text-gray-900 dark:text-white text-sm rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#f48733] focus:border-[#f48733] transition-colors">
+                                    <option value="2025">1/June/2025</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2020">2020</option>
+                                    <option value="2019">2019</option>
+                                    <option value="2018">2018</option>
+                                    <option value="2017">2017</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button id="exportBtn" class="flex items-center gap-2 px-4 py-2 bg-[#f48733] text-white rounded-lg font-semibold hover:bg-[#e37527] transition-colors shadow-md">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Export Data
+                            </button>
+                            <button id="refreshBtn" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 4V10H7M23 20V14H17M20.49 9C19.9828 7.56678 19.1209 6.28392 17.9845 5.27719C16.8482 4.27045 15.4745 3.57898 13.9917 3.26777C12.5089 2.95655 10.9652 3.03744 9.52013 3.50177C8.07505 3.9661 6.78304 4.79702 5.77 5.91L1 10M23 14L18.23 18.09C17.217 19.203 15.925 20.0339 14.4799 20.4982C13.0348 20.9626 11.4911 21.0434 10.0083 20.7322C8.52547 20.421 7.1518 19.7295 6.01547 18.7228C4.87913 17.7161 4.01717 16.4332 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Smart Insights Panel - Human-Style Version -->
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center flex items-center justify-center gap-3">
+                            <span>Key Insights & Analysis</span>
+                            <button id="insightsToggle" class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                Hide
+                            </button>
+                        </h2>
+                        
+                        <div id="insightsContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Current Market Overview -->
+                            <div class="insight-card bg-white dark:bg-[#2a2a2a] p-6 rounded-xl border border-gray-200 dark:border-gray-600 shadow-lg">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                                        Current Market Overview
+                                        <span id="marketAnalysisYear" class="text-sm font-normal bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded ml-2">(2025)</span>
+                                    </h3>
+                                </div>
+                                
+                                <div id="marketInsights" class="space-y-4">
+                                    <!-- Dynamic content will be inserted here -->
+                                </div>
+                                
+                                <!-- Key Metrics -->
+                                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Market Concentration</div>
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                            <div id="marketConcentrationBar" class="bg-blue-500 h-2 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                                        </div>
+                                        <span id="marketConcentration" class="font-medium text-gray-800 dark:text-gray-200">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Planning & Outlook -->
+                            <div class="insight-card bg-white dark:bg-[#2a2a2a] p-6 rounded-xl border border-gray-200 dark:border-gray-600 shadow-lg">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                                        Planning & Outlook
+                                    </h3>
+                                </div>
+                                
+                                <div id="strategicInsights" class="space-y-4">
+                                    <!-- Dynamic content will be inserted here -->
+                                </div>
+                                
+                                <!-- Status Indicators -->
+                                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="text-center">
+                                            <div class="text-lg font-bold text-gray-800 dark:text-gray-200" id="urgencyLevel">Moderate</div>
+                                            <div class="text-xs text-gray-600 dark:text-gray-400">Infrastructure Priority</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-lg font-bold text-gray-800 dark:text-gray-200" id="sustainabilityScore">Fair</div>
+                                            <div class="text-xs text-gray-600 dark:text-gray-400">Sustainability Rating</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary Statistics -->
+                        <div class="mt-6 bg-white dark:bg-[#2a2a2a] p-4 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mb-3 text-center">Quick Reference</div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                <div>
+                                    <div class="text-xl font-bold text-gray-900 dark:text-white" id="quickDensity">3,721</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Vehicles per km²</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-gray-900 dark:text-white" id="quickGrowth">+7.5%</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Annual Growth</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-gray-900 dark:text-white" id="quickDominance">68%</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">Two-Wheeler Share</div>
+                                </div>
+                                <div>
+                                    <div class="text-xl font-bold text-gray-900 dark:text-white" id="quickProjection">14.4M</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-400">2030 Estimate</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="metric-card p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-blue-600 dark:text-blue-400">Total Vehicles</p>
+                                    <p id="totalVehicles" class="text-3xl font-black text-gray-900 dark:text-white">Loading...</p>
+                                    <p id="totalGrowth" class="text-sm text-gray-600 dark:text-gray-400 font-semibold">-</p>
+                                </div>
+                                <div class="p-3 bg-blue-500 rounded-full">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-green-600 dark:text-green-400">Two Wheelers</p>
+                                    <p id="twoWheelers" class="text-3xl font-black text-gray-900 dark:text-white">Loading...</p>
+                                    <p id="twoWheelerShare" class="text-sm text-gray-600 dark:text-gray-400 font-semibold">-</p>
+                                </div>
+                                <div class="p-3 bg-green-500 rounded-full">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-purple-600 dark:text-purple-400">YoY Growth</p>
+                                    <p id="yoyGrowth" class="text-3xl font-black text-gray-900 dark:text-white">Loading...</p>
+                                    <p id="yoyDescription" class="text-sm text-gray-600 dark:text-gray-400 font-semibold">-</p>
+                                </div>
+                                <div class="p-3 bg-purple-500 rounded-full">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric-card p-6 shadow-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-orange-600 dark:text-orange-400">2030 Prediction</p>
+                                    <p id="prediction2030" class="text-3xl font-black text-gray-900 dark:text-white">Loading...</p>
+                                    <p id="predictionGrowth" class="text-sm text-gray-600 dark:text-gray-400 font-semibold">-</p>
+                                </div>
+                                <div class="p-3 bg-orange-500 rounded-full">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="space-y-8">
+                        <!-- Growth Trends and Pie Chart -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="chart-container">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4"> Growth Trajectory</h3>
+                                <div id="growthChart" class="h-80"></div>
+                            </div>
+
+                            <div class="chart-container">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4"> Market Share</h3>
+                                <div id="pieChart" class="h-80"></div>
+                            </div>
+                        </div>
+
+                        <!-- Future Predictions Chart -->
+                        <div class="chart-container">
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4"> Future Predictions (2026-2030)</h3>
+                            <div id="predictionChart" class="h-96"></div>
+                        </div>
+
+                        <!-- Detailed Analysis -->
+                        <div class="chart-container">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white"> Category Analysis</h3>
+                                <div class="flex gap-2">
+                                    <button id="growthRateBtn" class="px-3 py-1 bg-[#f48733] text-white rounded-lg text-sm font-semibold">Growth Rate</button>
+                                    <button id="rankingBtn" class="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold">Current Ranking</button>
+                                    <button id="evolutionBtn" class="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold">Evolution</button>
+                                </div>
+                            </div>
+                            <div id="trendChart" class="h-96"></div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Insights Section -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                        <div class="bg-white dark:bg-[#2a2a2a] p-6 rounded-xl border border-indigo-200 dark:border-indigo-700 shadow-lg">
+                            <h4 class="text-lg font-bold text-indigo-700 dark:text-indigo-300 mb-3"> Traffic Impact</h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                                Current vehicle growth indicates infrastructure strain. Two-wheeler dominance affects traffic flow patterns.
+                            </p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-indigo-600 dark:text-indigo-400">Infrastructure Load</span>
+                                    <span class="font-semibold text-indigo-800 dark:text-indigo-200">85%</span>
+                                </div>
+                                <div class="w-full bg-indigo-200 dark:bg-indigo-800 rounded-full h-2">
+                                    <div class="bg-indigo-600 h-2 rounded-full" style="width: 85%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-[#2a2a2a] p-6 rounded-xl border border-emerald-200 dark:border-emerald-700 shadow-lg">
+                            <h4 class="text-lg font-bold text-emerald-700 dark:text-emerald-300 mb-3"> Sustainability</h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                                Electric vehicle adoption and public transport integration crucial for sustainable growth.
+                            </p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-emerald-600 dark:text-emerald-400">EV Adoption</span>
+                                    <span class="font-semibold text-emerald-800 dark:text-emerald-200">12%</span>
+                                </div>
+                                <div class="w-full bg-emerald-200 dark:bg-emerald-800 rounded-full h-2">
+                                    <div class="bg-emerald-600 h-2 rounded-full" style="width: 12%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-[#2a2a2a] p-6 rounded-xl border border-amber-200 dark:border-amber-700 shadow-lg">
+                            <h4 class="text-lg font-bold text-amber-700 dark:text-amber-300 mb-3"> Policy Impact</h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                                Strategic interventions needed for congestion management and infrastructure development.
+                            </p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-amber-600 dark:text-amber-400">Policy Effectiveness</span>
+                                    <span class="font-semibold text-amber-800 dark:text-amber-200">68%</span>
+                                </div>
+                                <div class="w-full bg-amber-200 dark:bg-amber-800 rounded-full h-2">
+                                    <div class="bg-amber-600 h-2 rounded-full" style="width: 68%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="flex w-full flex-1 flex-col">
+                    <footer class="flex flex-col gap-6 px-0 py-10 text-center">
+                        <div class="flex flex-wrap items-center justify-center gap-6">
+                            <a class="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300 hover:text-[#f48733]" href="#">Vehicle Analytics</a>
+                            <a class="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300 hover:text-[#f48733]" href="#">Traffic Analysis</a>
+                            <a class="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300 hover:text-[#f48733]" href="#">Real-Time Data</a>
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-4">
+                            <a href="https://github.com/ZahidRasoolWani/MajorProject" target="_blank" class="hover:opacity-75 transition-opacity">
+                                <svg class="w-6 h-6 text-gray-600 dark:text-gray-400 hover:text-[#f48733]" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                            </a>
+                            <a href="https://www.linkedin.com/in/zahid-rasool-wani-66227a279" target="_blank" class="hover:opacity-75 transition-opacity">
+                                <svg class="w-6 h-6 text-gray-600 dark:text-gray-400 hover:text-[#f48733]" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                </svg>
+                            </a>
+                        </div>
+                        <p class="text-gray-600 dark:text-gray-400 text-base font-normal leading-normal transition-colors duration-300">This project is proudly open-source. Contributions welcome!</p>
+                    </footer>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let vehicleData = [];
+        let currentYear = '2025';
+        let chartTheme = 'light';
+        let isDataLoaded = false;
+
+        // Professional color schemes
+        const COLORS = {
+            primary: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316'],
+            blue: '#3B82F6',
+            green: '#10B981',
+            purple: '#8B5CF6',
+            orange: '#F59E0B',
+            red: '#EF4444'
+        };
+
+        // Theme Management
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const themeText = document.getElementById('theme-text');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Light';
+                chartTheme = 'dark';
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Dark';
+                chartTheme = 'light';
+            }
+        }
+
+        // Initialize theme
+        const isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDarkMode) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+        updateThemeIcon(isDarkMode);
+
+        // Theme toggle functionality
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyDark = html.classList.contains('dark');
+            if (isCurrentlyDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+            updateAllCharts();
+        });
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const existing = document.getElementById('notification');
+            if (existing) existing.remove();
+            
+            const notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.className = `fixed top-20 right-4 z-50 px-4 py-2 rounded-lg shadow-lg transition-all duration-300 ${
+                type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' :
+                type === 'error' ? 'bg-red-100 text-red-800 border border-red-300' :
+                type === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                'bg-blue-100 text-blue-800 border border-blue-300'
+            }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 4000);
+        }
+
+        // Embedded CSV Dataset - Loaded from vehiclecount.csv
+        const VEHICLE_DATASET = [
+            {"Type of Vehicle": "Two Wheelers", "2017": 5123057, "2018": 5542012, "2019": 6003597, "2020": 6418232, "2021": 6673856, "2022": 6931839, "2023": 7332587, "2024": 7809958, "2025": 8283952},
+            {"Type of Vehicle": "Cars", "2017": 1661276, "2018": 1775462, "2019": 1887649, "2020": 1989509, "2021": 2085384, "2022": 2197158, "2023": 2233327, "2024": 2392477, "2025": 2537799},
+            {"Type of Vehicle": "Omni Buses", "2017": 4905, "2018": 4936, "2019": 4937, "2020": 4969, "2021": 4980, "2022": 4988, "2023": 5013, "2024": 5286, "2025": 5895},
+            {"Type of Vehicle": "Tractors", "2017": 29515, "2018": 30610, "2019": 32114, "2020": 34077, "2021": 35830, "2022": 36688, "2023": 37741, "2024": 38433, "2025": 39241},
+            {"Type of Vehicle": "Trailers", "2017": 11148, "2018": 11802, "2019": 11987, "2020": 13026, "2021": 13915, "2022": 14298, "2023": 14693, "2024": 14942, "2025": 15217},
+            {"Type of Vehicle": "Construction Moving Equipment", "2017": 9387, "2018": 10101, "2019": 10563, "2020": 11388, "2021": 12188, "2022": 12677, "2023": 13134, "2024": 13373, "2025": 13639},
+            {"Type of Vehicle": "Private Service Vehicle", "2017": 25748, "2018": 26989, "2019": 28011, "2020": 29543, "2021": 30980, "2022": 32106, "2023": 33346, "2024": 34221, "2025": 34890},
+            {"Type of Vehicle": "Other Vehicles", "2017": 1513, "2018": 1587, "2019": 1648, "2020": 1736, "2021": 1819, "2022": 1886, "2023": 1958, "2024": 2007, "2025": 2046},
+            {"Type of Vehicle": "Multi Axled/Articulated Vehicle", "2017": 1320, "2018": 1382, "2019": 1436, "2020": 1513, "2021": 1585, "2022": 1643, "2023": 1706, "2024": 1749, "2025": 1783},
+            {"Type of Vehicle": "Trucks and Lorries", "2017": 152857, "2018": 159613, "2019": 166644, "2020": 173963, "2021": 181582, "2022": 189515, "2023": 197775, "2024": 206378, "2025": 199381},
+            {"Type of Vehicle": "Four Wheeler", "2017": 13269, "2018": 13865, "2019": 14441, "2020": 15075, "2021": 15738, "2022": 16391, "2023": 17073, "2024": 17516, "2025": 17858},
+            {"Type of Vehicle": "Three Wheeler", "2017": 5896, "2018": 6161, "2019": 6415, "2020": 6699, "2021": 6997, "2022": 7286, "2023": 7585, "2024": 7784, "2025": 7935},
+            {"Type of Vehicle": "Buses", "2017": 101992, "2018": 106552, "2019": 111280, "2020": 116184, "2021": 121273, "2022": 126554, "2023": 132037, "2024": 137729, "2025": 130112},
+            {"Type of Vehicle": "Motor Cabs", "2017": 157074, "2018": 164027, "2019": 171268, "2020": 178823, "2021": 186719, "2022": 194982, "2023": 203641, "2024": 212726, "2025": 250828},
+            {"Type of Vehicle": "Maxi Cabs", "2017": 39268, "2018": 41021, "2019": 42817, "2020": 44706, "2021": 46696, "2022": 48717, "2023": 50826, "2024": 52610, "2025": 52873},
+            {"Type of Vehicle": "Others", "2017": 1513, "2018": 1587, "2019": 1648, "2020": 1736, "2021": 1819, "2022": 1886, "2023": 1958, "2024": 2007, "2025": 2046},
+            {"Type of Vehicle": "Three Seater(A/R)", "2017": 240069, "2018": 250672, "2019": 261702, "2020": 273179, "2021": 285128, "2022": 297568, "2023": 310521, "2024": 324010, "2025": 356665},
+            {"Type of Vehicle": "Other Vehicles", "2017": 1513, "2018": 1587, "2019": 1648, "2020": 1736, "2021": 1819, "2022": 1886, "2023": 1958, "2024": 2007, "2025": 2046}
+        ];
+
+        // Load dataset function
+        function loadDataset() {
+            try {
+                showNotification(' Loading data from dataset...', 'info');
+                
+                // Simulate loading time for better UX
+                setTimeout(() => {
+                    // Remove duplicates and filter valid data
+                    const uniqueVehicles = new Map();
+                    
+                    VEHICLE_DATASET.forEach(vehicle => {
+                        const vehicleType = vehicle['Type of Vehicle'];
+                        if (vehicleType && vehicleType.trim() !== '') {
+                            // Keep the one with higher total if duplicates exist
+                            const total2025 = vehicle['2025'] || 0;
+                            if (!uniqueVehicles.has(vehicleType) || 
+                                uniqueVehicles.get(vehicleType)['2025'] < total2025) {
+                                uniqueVehicles.set(vehicleType, vehicle);
+                            }
+                        }
+                    });
+                    
+                    vehicleData = Array.from(uniqueVehicles.values());
+                    
+                    console.log('Loaded vehicle dataset:', vehicleData.length, 'categories');
+                    console.log('Vehicle categories:', vehicleData.map(v => v['Type of Vehicle']));
+                    
+                    isDataLoaded = true;
+                    showNotification(` Data loaded from dataset! (${vehicleData.length} vehicle categories)`, 'success');
+                    initializeDashboard();
+                }, 800); // Small delay to show loading
+                
+            } catch (error) {
+                console.error('Error loading dataset:', error);
+                showNotification(` Error loading dataset: ${error.message}`, 'error');
+            }
+        }
+
+        // Data processing functions
+        function getYearlyTotals() {
+            if (!isDataLoaded) return {};
+            const years = ['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025'];
+            const totals = {};
+            years.forEach(year => {
+                totals[year] = vehicleData.reduce((sum, vehicle) => sum + (vehicle[year] || 0), 0);
+            });
+            return totals;
+        }
+
+        function getTopVehicles(year, limit = 8) {
+            if (!isDataLoaded) return [];
+            return vehicleData
+                .filter(v => v[year] && v[year] > 0)
+                .sort((a, b) => (b[year] || 0) - (a[year] || 0))
+                .slice(0, limit);
+        }
+
+        function calculatePrediction(year) {
+            const yearlyTotals = getYearlyTotals();
+            const years = Object.keys(yearlyTotals).map(y => parseInt(y));
+            const values = Object.values(yearlyTotals);
+            
+            // Linear regression
+            const n = years.length;
+            const sumX = years.reduce((a, b) => a + b, 0);
+            const sumY = values.reduce((a, b) => a + b, 0);
+            const sumXY = years.reduce((sum, x, i) => sum + x * values[i], 0);
+            const sumX2 = years.reduce((sum, x) => sum + x * x, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            return Math.round(slope * year + intercept);
+        }
+
+        // Update metrics function
+        function updateMetrics(year) {
+            const yearInt = parseInt(year);
+            const previousYear = (yearInt - 1).toString();
+
+            const totalCurrent = vehicleData.reduce((sum, row) => sum + (parseInt(row[year]) || 0), 0);
+            const totalPrevious = vehicleData.reduce((sum, row) => sum + (parseInt(row[previousYear]) || 0), 0);
+
+            const growth = totalPrevious > 0 ? ((totalCurrent - totalPrevious) / totalPrevious) * 100 : 0;
+
+            const twoWheelers = vehicleData.find(row => row["Type of Vehicle"].toLowerCase().includes("two wheeler"));
+            const twoWheelerCount = twoWheelers && twoWheelers[year] ? parseInt(twoWheelers[year]) : 0;
+            const twoWheelerShare = ((twoWheelerCount / totalCurrent) * 100).toFixed(1);
+
+            const prediction2030 = calculatePrediction(2030);
+
+            // Update DOM
+            document.getElementById('totalVehicles').textContent = totalCurrent.toLocaleString();
+            document.getElementById('twoWheelers').textContent = twoWheelerCount.toLocaleString();
+            document.getElementById('yoyGrowth').textContent = `${growth.toFixed(2)}%`;
+            document.getElementById('prediction2030').textContent = prediction2030.toLocaleString();
+
+            // Update additional info
+            document.getElementById('totalGrowth').textContent = growth > 0 ? `+${growth.toFixed(1)}% from ${previousYear}` : 'No previous data';
+            document.getElementById('twoWheelerShare').textContent = `${twoWheelerShare}% of total`;
+            document.getElementById('yoyDescription').textContent = growth > 5 ? 'High Growth' : growth > 2 ? 'Steady Growth' : 'Slow Growth';
+            
+            const predictionGrowth = ((prediction2030 - totalCurrent) / totalCurrent * 100).toFixed(1);
+            document.getElementById('predictionGrowth').textContent = `+${predictionGrowth}% by 2030`;
+
+            // Generate smart insights
+            generateSmartInsights(year);
+        }
+
+        // Human-style insights generation
+        function generateSmartInsights(year) {
+            if (!isDataLoaded) return;
+            
+            const yearlyTotals = getYearlyTotals();
+            const currentTotal = yearlyTotals[year] || 0;
+            const topVehicles = getTopVehicles(year, 10);
+            
+            // Update year displays
+            document.getElementById('marketAnalysisYear').textContent = `(${year})`;
+            
+            // Generate natural, human-style insights
+            generateMarketOverview(year, currentTotal, topVehicles, yearlyTotals);
+            generatePlanningOutlook(year, yearlyTotals);
+            updateQuickStats(year, currentTotal, topVehicles, yearlyTotals);
+            
+            // Setup toggle functionality
+            setupInsightsToggle();
+        }
+
+        function generateMarketOverview(year, currentTotal, topVehicles, yearlyTotals) {
+            const insights = [];
+            
+            // Lead with the most important finding
+            if (topVehicles.length > 0) {
+                const leader = topVehicles[0];
+                const leaderShare = ((leader[year] / currentTotal) * 100).toFixed(1);
+                const leaderCount = (leader[year] || 0).toLocaleString();
+                
+                insights.push({
+                    text: `Two-wheelers continue to dominate Bengaluru's roads, accounting for ${leaderShare}% of all registered vehicles (${leaderCount} units). This trend reflects the city's preference for affordable, fuel-efficient transportation.`
+                });
+            }
+            
+            // Market structure analysis
+            const top3Total = topVehicles.slice(0, 3).reduce((sum, v) => sum + (v[year] || 0), 0);
+            const concentration = ((top3Total / currentTotal) * 100).toFixed(1);
+            
+            insights.push({
+                text: `The vehicle market shows ${parseFloat(concentration) > 85 ? 'high concentration' : 'balanced distribution'} with the top three categories representing ${concentration}% of total registrations. This indicates ${parseFloat(concentration) > 85 ? 'limited diversity in transportation choices' : 'healthy market segmentation'}.`
+            });
+            
+            // Growth context
+            const prevYear = String(parseInt(year) - 1);
+            if (yearlyTotals[prevYear]) {
+                const addedVehicles = (currentTotal - yearlyTotals[prevYear]).toLocaleString();
+                const growthRate = (((currentTotal - yearlyTotals[prevYear]) / yearlyTotals[prevYear]) * 100).toFixed(1);
+                
+                insights.push({
+                    text: `Registration activity ${parseFloat(growthRate) > 5 ? 'remains robust' : parseFloat(growthRate) > 2 ? 'shows steady growth' : 'has moderated'} with ${addedVehicles} new vehicles added over the past year, representing ${growthRate}% growth.`
+                });
+            }
+            
+            // Update DOM with natural language
+            const container = document.getElementById('marketInsights');
+            container.innerHTML = insights.map(insight => `
+                <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    ${insight.text}
+                </div>
+            `).join('');
+            
+            // Update market concentration
+            document.getElementById('marketConcentration').textContent = `${concentration}%`;
+            document.getElementById('marketConcentrationBar').style.width = `${concentration}%`;
+        }
+
+        function generatePlanningOutlook(year, yearlyTotals) {
+            const insights = [];
+            const prediction2030 = calculatePrediction(2030);
+            const currentTotal = yearlyTotals[year];
+            
+            // Infrastructure assessment
+            let infraStatus, infraDescription;
+            if (currentTotal > 10000000) {
+                infraStatus = 'Critical';
+                infraDescription = `With over ${(currentTotal/1000000).toFixed(1)} million vehicles, Bengaluru's infrastructure is under severe strain. Immediate action is needed to prevent gridlock and maintain mobility.`;
+            } else if (currentTotal > 7000000) {
+                infraStatus = 'High Priority';
+                infraDescription = `Current vehicle count of ${(currentTotal/1000000).toFixed(1)} million is approaching critical thresholds. Proactive infrastructure development is essential.`;
+            } else {
+                infraStatus = 'Manageable';
+                infraDescription = `At ${(currentTotal/1000000).toFixed(1)} million vehicles, current levels are within manageable limits, but planning for future growth remains important.`;
+            }
+            
+            insights.push({
+                text: infraDescription
+            });
+            
+            // Future projection
+            const growthTo2030 = ((prediction2030 - currentTotal) / currentTotal * 100).toFixed(1);
+            const projectionText = prediction2030 > 12000000 ? 
+                `By 2030, vehicle registrations could reach ${(prediction2030/1000000).toFixed(1)} million, a ${growthTo2030}% increase that would require transformative changes to transportation infrastructure and policies.` :
+                `Projections suggest ${(prediction2030/1000000).toFixed(1)} million vehicles by 2030 (${growthTo2030}% growth), which is manageable with strategic planning and investment.`;
+            
+            insights.push({
+                text: projectionText
+            });
+            
+            // Sustainability perspective
+            const twoWheelerShare = vehicleData.find(v => v['Type of Vehicle'] === 'Two Wheelers');
+            const sustainabilityText = twoWheelerShare && ((twoWheelerShare[year] / currentTotal) * 100) > 65 ?
+                `The high proportion of two-wheelers presents both challenges and opportunities for sustainable mobility. Electric two-wheeler adoption could significantly reduce emissions.` :
+                `The current vehicle mix provides a foundation for sustainable transportation planning, with opportunities for electric vehicle integration and public transport enhancement.`;
+            
+            insights.push({
+                text: sustainabilityText
+            });
+            
+            // Update DOM
+            const container = document.getElementById('strategicInsights');
+            container.innerHTML = insights.map(insight => `
+                <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                    ${insight.text}
+                </div>
+            `).join('');
+            
+            // Update status indicators with human-friendly terms
+            document.getElementById('urgencyLevel').textContent = infraStatus;
+            document.getElementById('urgencyLevel').className = `text-lg font-bold ${
+                infraStatus === 'Critical' ? 'text-red-600' :
+                infraStatus === 'High Priority' ? 'text-orange-600' :
+                'text-green-600'
+            }`;
+            
+            // Sustainability rating
+            const twoWheelerPct = twoWheelerShare ? ((twoWheelerShare[year] / currentTotal) * 100) : 50;
+            const sustainabilityRating = twoWheelerPct > 70 ? 'Poor' : twoWheelerPct > 60 ? 'Fair' : 'Good';
+            document.getElementById('sustainabilityScore').textContent = sustainabilityRating;
+        }
+
+        
+            
+        function updateQuickStats(year, currentTotal, topVehicles, yearlyTotals) {
+            // Vehicle density (Bengaluru area: ~2,190 sq km)
+            const density = Math.round(currentTotal / 2190);
+            document.getElementById('quickDensity').textContent = density.toLocaleString();
+            
+            // YoY Growth
+            const prevYear = String(parseInt(year) - 1);
+            const yoyGrowth = yearlyTotals[prevYear] ? 
+                (((currentTotal - yearlyTotals[prevYear]) / yearlyTotals[prevYear]) * 100).toFixed(1) : '0';
+            document.getElementById('quickGrowth').textContent = `+${yoyGrowth}%`;
+            
+            // Two-wheeler share
+            const twoWheelers = topVehicles.find(v => v['Type of Vehicle'] === 'Two Wheelers');
+            const dominance = twoWheelers ? ((twoWheelers[year] / currentTotal) * 100).toFixed(0) : '0';
+            document.getElementById('quickDominance').textContent = `${dominance}%`;
+            
+            // 2030 projection
+            const prediction2030 = calculatePrediction(2030);
+            document.getElementById('quickProjection').textContent = `${(prediction2030/1000000).toFixed(1)}M`;
+        }
+
+        function setupInsightsToggle() {
+            const toggle = document.getElementById('insightsToggle');
+            const container = document.getElementById('insightsContainer');
+            
+            if (!toggle.hasAttribute('data-setup')) {
+                toggle.setAttribute('data-setup', 'true');
+                toggle.addEventListener('click', () => {
+                    if (container.style.display === 'none') {
+                        container.style.display = 'grid';
+                        toggle.textContent = 'Hide';
+                    } else {
+                        container.style.display = 'none';
+                        toggle.textContent = 'Show';
+                    }
+                });
+            }
+        //} );
+            const yoyGrowth = yearlyTotals[prevYear] ? 
+                (((currentTotal - yearlyTotals[prevYear]) / yearlyTotals[prevYear]) * 100).toFixed(1) : '0';
+            document.getElementById('quickGrowth').textContent = `+${yoyGrowth}%`;
+            
+            // Two-wheeler share
+            const twoWheelers = topVehicles.find(v => v['Type of Vehicle'] === 'Two Wheelers');
+            const dominance = twoWheelers ? ((twoWheelers[year] / currentTotal) * 100).toFixed(0) : '0';
+            document.getElementById('quickDominance').textContent = `${dominance}%`;
+            
+            // 2030 projection
+            const prediction2030 = calculatePrediction(2030);
+            document.getElementById('quickProjection').textContent = `${(prediction2030/1000000).toFixed(1)}M`;
+        }
+
+        function setupInsightsToggle() {
+            const toggle = document.getElementById('insightsToggle');
+            const container = document.getElementById('insightsContainer');
+            
+            if (!toggle.hasAttribute('data-setup')) {
+                toggle.setAttribute('data-setup', 'true');
+                toggle.addEventListener('click', () => {
+                    if (container.style.display === 'none') {
+                        container.style.display = 'grid';
+                        toggle.textContent = 'Hide';
+                    } else {
+                        container.style.display = 'none';
+                        toggle.textContent = 'Show';
+                    }
+                });
+            }
+       // } 1);
+            const yoyGrowth = yearlyTotals[prevYear] ? 
+                (((currentTotal - yearlyTotals[prevYear]) / yearlyTotals[prevYear]) * 100).toFixed(1) : '0';
+            document.getElementById('quickGrowth').textContent = `+${yoyGrowth}%`;
+            
+            // Two-wheeler dominance
+            const twoWheelers = topVehicles.find(v => v['Type of Vehicle'] === 'Two Wheelers');
+            const dominance = twoWheelers ? ((twoWheelers[year] / currentTotal) * 100).toFixed(0) : '0';
+            document.getElementById('quickDominance').textContent = `${dominance}%`;
+            
+            // 2030 projection
+            const prediction2030 = calculatePrediction(2030);
+            document.getElementById('quickProjection').textContent = `${(prediction2030/1000000).toFixed(1)}M`;
+        }
+
+        function setupInsightsToggle() {
+            const toggle = document.getElementById('insightsToggle');
+            const container = document.getElementById('insightsContainer');
+            
+            if (!toggle.hasAttribute('data-setup')) {
+                toggle.setAttribute('data-setup', 'true');
+                toggle.addEventListener('click', () => {
+                    if (container.style.display === 'none') {
+                        container.style.display = 'grid';
+                        toggle.textContent = 'Collapse';
+                    } else {
+                        container.style.display = 'none';
+                        toggle.textContent = 'Expand';
+                    }
+                });
+            }
+        }
+
+        // Chart creation functions
+        function createGrowthChart(year) {
+            if (!isDataLoaded) return;
+            
+            const yearlyTotals = getYearlyTotals();
+            const years = Object.keys(yearlyTotals);
+            const values = Object.values(yearlyTotals);
+            
+            const trace = {
+                x: years,
+                y: values,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Vehicle Growth',
+                line: { color: COLORS.blue, width: 4 },
+                marker: { 
+                    color: COLORS.blue, 
+                    size: 10,
+                    line: { color: '#ffffff', width: 2 }
+                },
+                fill: 'tonexty',
+                fillcolor: 'rgba(59, 130, 246, 0.1)',
+                hovertemplate: '<b>Year:</b> %{x}<br><b>Total:</b> %{y:,}<extra></extra>'
+            };
+            
+            const selectedIndex = years.indexOf(year);
+            const traces = [trace];
+            
+            if (selectedIndex !== -1) {
+                traces.push({
+                    x: [year],
+                    y: [values[selectedIndex]],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Selected (${year})`,
+                    marker: { 
+                        color: COLORS.red, 
+                        size: 15,
+                        line: { color: '#ffffff', width: 3 },
+                        symbol: 'star'
+                    },
+                    showlegend: false
+                });
+            }
+            
+            const layout = {
+                title: {
+                    text: `Vehicle Registration Growth (2017-2025)`,
+                    font: { size: 18, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                xaxis: { 
+                    title: 'Year',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                yaxis: { 
+                    title: 'Total Vehicles',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                margin: { l: 60, r: 40, t: 60, b: 60 }
+            };
+            
+            Plotly.newPlot('growthChart', traces, layout, {responsive: true});
+        }
+
+        function createPieChart(year) {
+            if (!isDataLoaded) return;
+            
+            const topVehicles = getTopVehicles(year, 6);
+            const labels = topVehicles.map(v => v['Type of Vehicle']);
+            const values = topVehicles.map(v => v[year] || 0);
+            
+            const trace = {
+                labels: labels,
+                values: values,
+                type: 'pie',
+                hole: 0.4,
+                marker: {
+                    colors: COLORS.primary,
+                    line: { color: '#ffffff', width: 2 }
+                },
+                textposition: 'auto',
+                textinfo: 'percent+label',
+                textfont: { size: 11, color: '#ffffff' },
+                hovertemplate: '<b>%{label}</b><br>Count: %{value:,}<br>Share: %{percent}<extra></extra>'
+            };
+            
+            const layout = {
+                title: {
+                    text: `Market Share Distribution (${year})`,
+                    font: { size: 18, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                showlegend: true,
+                legend: {
+                    orientation: 'v',
+                    x: 1.05,
+                    y: 0.5,
+                    font: { size: 10 }
+                },
+                margin: { l: 40, r: 120, t: 60, b: 40 }
+            };
+            
+            Plotly.newPlot('pieChart', [trace], layout, {responsive: true});
+        }
+
+        function createPredictionChart() {
+            if (!isDataLoaded) return;
+            
+            const yearlyTotals = getYearlyTotals();
+            const historicalYears = Object.keys(yearlyTotals).map(y => parseInt(y));
+            const historicalValues = Object.values(yearlyTotals);
+            
+            const futureYears = [2026, 2027, 2028, 2029, 2030];
+            const futureValues = futureYears.map(year => calculatePrediction(year));
+            
+            const traces = [
+                {
+                    x: historicalYears,
+                    y: historicalValues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Historical Data',
+                    line: { color: COLORS.blue, width: 4 },
+                    marker: { color: COLORS.blue, size: 8 }
+                },
+                {
+                    x: futureYears,
+                    y: futureValues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Predicted Growth',
+                    line: { color: COLORS.orange, width: 4, dash: 'dash' },
+                    marker: { color: COLORS.orange, size: 8 }
+                }
+            ];
+            
+            const layout = {
+                title: {
+                    text: 'Vehicle Growth Predictions (2026-2030)',
+                    font: { size: 20, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                xaxis: { 
+                    title: 'Year',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                yaxis: { 
+                    title: 'Total Vehicles',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                hovermode: 'x unified',
+                legend: {
+                    orientation: 'h',
+                    x: 0.5,
+                    y: -0.15,
+                    xanchor: 'center'
+                },
+                margin: { l: 60, r: 40, t: 80, b: 80 }
+            };
+            
+            Plotly.newPlot('predictionChart', traces, layout, {responsive: true});
+        }
+
+        function createTrendChart() {
+            if (!isDataLoaded) return;
+            
+            const topVehicles = getTopVehicles('2025', 8);
+            
+            const growthData = topVehicles.map(vehicle => {
+                const start = vehicle['2017'] || 1;
+                const end = vehicle['2025'] || 0;
+                const growthRate = ((end - start) / start) * 100;
+                const totalGrowth = end - start;
+                
+                return {
+                    category: vehicle['Type of Vehicle'],
+                    growthRate: growthRate,
+                    totalGrowth: totalGrowth,
+                    start: start,
+                    end: end
+                };
+            }).sort((a, b) => b.growthRate - a.growthRate);
+            
+            const trace = {
+                x: growthData.map(d => d.growthRate),
+                y: growthData.map(d => d.category),
+                type: 'bar',
+                orientation: 'h',
+                marker: {
+                    color: growthData.map((d, i) => {
+                        const colors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316'];
+                        return colors[i % colors.length];
+                    }),
+                    opacity: 0.8,
+                    line: {
+                        color: chartTheme === 'dark' ? '#ffffff' : '#000000',
+                        width: 1
+                    }
+                },
+                text: growthData.map(d => `+${d.growthRate.toFixed(1)}%`),
+                textposition: 'outside',
+                textfont: {
+                    size: 12,
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    family: 'Inter, sans-serif'
+                },
+                hovertemplate: '<b>%{y}</b><br>' +
+                              'Growth Rate: %{x:.1f}%<br>' +
+                              'Added Vehicles: %{customdata:,}<br>' +
+                              '<extra></extra>',
+                customdata: growthData.map(d => d.totalGrowth)
+            };
+            
+            const layout = {
+                title: {
+                    text: 'Vehicle Category Growth Rate (2017-2025)',
+                    font: { size: 20, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                xaxis: { 
+                    title: 'Growth Rate (%)',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb',
+                    showgrid: true,
+                    zeroline: true,
+                    zerolinecolor: chartTheme === 'dark' ? '#666666' : '#999999',
+                    zerolinewidth: 2
+                },
+                yaxis: { 
+                    title: '',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    tickfont: { size: 11 }
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                margin: { l: 150, r: 60, t: 80, b: 60 },
+                showlegend: false
+            };
+            
+            Plotly.newPlot('trendChart', [trace], layout, {responsive: true});
+        }
+
+        // Create ranking chart
+        function createRankingChart() {
+            if (!isDataLoaded) return;
+            
+            const currentData = getTopVehicles(currentYear, 8);
+            
+            const trace = {
+                x: currentData.map(v => v[currentYear] || 0),
+                y: currentData.map(v => v['Type of Vehicle']),
+                type: 'bar',
+                orientation: 'h',
+                marker: {
+                    color: currentData.map((v, i) => {
+                        const intensity = 1 - (i * 0.1);
+                        return `rgba(244, 135, 51, ${intensity})`;
+                    }),
+                    line: {
+                        color: '#f48733',
+                        width: 1
+                    }
+                },
+                text: currentData.map(v => (v[currentYear] || 0).toLocaleString()),
+                textposition: 'outside',
+                textfont: {
+                    size: 12,
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    family: 'Inter, sans-serif'
+                },
+                hovertemplate: '<b>%{y}</b><br>Count: %{x:,}<br>Rank: #%{customdata}<extra></extra>',
+                customdata: currentData.map((v, i) => i + 1)
+            };
+            
+            const layout = {
+                title: {
+                    text: `Vehicle Category Ranking (${currentYear})`,
+                    font: { size: 20, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                xaxis: { 
+                    title: 'Number of Vehicles',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb',
+                    showgrid: true
+                },
+                yaxis: { 
+                    title: '',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    tickfont: { size: 11 }
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                margin: { l: 150, r: 60, t: 80, b: 60 },
+                showlegend: false
+            };
+            
+            Plotly.newPlot('trendChart', [trace], layout, {responsive: true});
+        }
+
+        // Create evolution chart
+        function createEvolutionChart() {
+            if (!isDataLoaded) return;
+            
+            const years = ['2017', '2020', '2023', '2025'];
+            const topVehicles = getTopVehicles('2025', 6);
+            
+            const traces = topVehicles.map((vehicle, index) => {
+                return {
+                    x: years,
+                    y: years.map(year => vehicle[year] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: vehicle['Type of Vehicle'],
+                    line: { 
+                        color: COLORS.primary[index % COLORS.primary.length],
+                        width: 3 
+                    },
+                    marker: { 
+                        color: COLORS.primary[index % COLORS.primary.length],
+                        size: 8 
+                    },
+                    hovertemplate: '<b>%{fullData.name}</b><br>Year: %{x}<br>Count: %{y:,}<extra></extra>'
+                };
+            });
+            
+            const layout = {
+                title: {
+                    text: 'Vehicle Category Evolution (2017-2025)',
+                    font: { size: 20, color: chartTheme === 'dark' ? '#ffffff' : '#374151' }
+                },
+                xaxis: { 
+                    title: 'Year',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                yaxis: { 
+                    title: 'Number of Vehicles',
+                    color: chartTheme === 'dark' ? '#ffffff' : '#374151',
+                    gridcolor: chartTheme === 'dark' ? '#404040' : '#e5e7eb'
+                },
+                plot_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                paper_bgcolor: chartTheme === 'dark' ? '#2a2a2a' : '#ffffff',
+                font: { color: chartTheme === 'dark' ? '#ffffff' : '#374151' },
+                legend: {
+                    orientation: 'h',
+                    x: 0.5,
+                    y: -0.15,
+                    xanchor: 'center',
+                    font: { size: 10 }
+                },
+                margin: { l: 60, r: 40, t: 80, b: 120 }
+            };
+            
+            Plotly.newPlot('trendChart', traces, layout, {responsive: true});
+        }
+
+        function updateAllCharts() {
+            if (!isDataLoaded) return;
+            
+            createGrowthChart(currentYear);
+            createPieChart(currentYear);
+            createPredictionChart();
+            createTrendChart(); // Default to growth rate view
+        }
+
+        function initializeDashboard() {
+            if (!isDataLoaded) return;
+            
+            updateMetrics(currentYear);
+            updateAllCharts();
+            
+            // Enable controls
+            document.getElementById('yearSelector').disabled = false;
+            document.getElementById('exportBtn').disabled = false;
+            document.getElementById('refreshBtn').disabled = false;
+            
+            // Setup chart view toggle buttons
+            setupChartToggle();
+        }
+
+        function setupChartToggle() {
+            const growthRateBtn = document.getElementById('growthRateBtn');
+            const rankingBtn = document.getElementById('rankingBtn');
+            const evolutionBtn = document.getElementById('evolutionBtn');
+            
+            function resetButtons() {
+                [growthRateBtn, rankingBtn, evolutionBtn].forEach(btn => {
+                    btn.className = 'px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold';
+                });
+            }
+            
+            growthRateBtn.addEventListener('click', () => {
+                resetButtons();
+                growthRateBtn.className = 'px-3 py-1 bg-[#f48733] text-white rounded-lg text-sm font-semibold';
+                createTrendChart(); // Growth rate chart (default)
+            });
+            
+            rankingBtn.addEventListener('click', () => {
+                resetButtons();
+                rankingBtn.className = 'px-3 py-1 bg-[#f48733] text-white rounded-lg text-sm font-semibold';
+                createRankingChart(); // Simple ranking chart
+            });
+            
+            evolutionBtn.addEventListener('click', () => {
+                resetButtons();
+                evolutionBtn.className = 'px-3 py-1 bg-[#f48733] text-white rounded-lg text-sm font-semibold';
+                createEvolutionChart(); // Evolution chart
+            });
+        }
+
+        // Event listeners
+        document.getElementById('yearSelector').addEventListener('change', (e) => {
+            currentYear = e.target.value;
+            updateMetrics(currentYear);
+            createGrowthChart(currentYear);
+            createPieChart(currentYear);
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (!isDataLoaded || vehicleData.length === 0) {
+                showNotification('No data available to export', 'error');
+                return;
+            }
+            
+            const headers = ['Type of Vehicle', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025'];
+            const csvContent = [
+                headers.join(','),
+                ...vehicleData.map(row => [
+                    `"${row['Type of Vehicle']}"`,
+                    row['2017'] || 0, row['2018'] || 0, row['2019'] || 0, row['2020'] || 0, row['2021'] || 0,
+                    row['2022'] || 0, row['2023'] || 0, row['2024'] || 0, row['2025'] || 0
+                ].join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bengaluru_vehicle_analytics_${currentYear}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showNotification(' Data exported successfully!', 'success');
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            showNotification(' Refreshing dataset...', 'info');
+            loadDataset();
+        });
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('yearSelector').disabled = true;
+            document.getElementById('exportBtn').disabled = true;
+            document.getElementById('refreshBtn').disabled = true;
+            
+            showNotification(' Loading vehicle analytics from dataset...', 'info');
+            loadDataset();
+        });
+
+        // Theme change listener
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!('theme' in localStorage)) {
+                if (e.matches) {
+                    html.classList.add('dark');
+                    updateThemeIcon(true);
+                } else {
+                    html.classList.remove('dark');
+                    updateThemeIcon(false);
+                }
+                updateAllCharts();
+            }
+        });
+    </script>
+</body>
+</html>

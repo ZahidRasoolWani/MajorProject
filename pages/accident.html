@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bengaluru Safety Analytics - Accident Analysis</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-white text-[#181411] dark:bg-[#1a1a1a] dark:text-white transition-colors duration-300">
+    <div class="relative flex size-full min-h-screen flex-col bg-white dark:bg-[#1a1a1a] group/design-root overflow-x-hidden transition-colors duration-300">
+        <div class="layout-container flex h-full grow flex-col">
+            <!-- Header -->
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-300 dark:border-gray-600 px-10 py-3 shadow-sm bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="flex items-center gap-4 text-[#181411] dark:text-white">
+                    <div class="size-4">
+                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-[#181411] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Bengaluru Traffic Insights</h2>
+                </div>
+                <div class="flex flex-1 justify-end gap-8">
+                    <div class="flex items-center gap-9">
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="../index.html">Home</a>
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="heatmap.html">Real-Time Traffic</a>
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors bg-gray-200 dark:bg-gray-700" href="#">Accident Analysis</a>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button id="export-btn" class="flex items-center justify-center min-w-[84px] h-10 px-4 rounded-full bg-[#f48733] text-[#181411] text-sm font-bold tracking-[0.015em] transition-all duration-200 hover:bg-[#e37527] hover:shadow-md">
+                            Export Report
+                        </button>
+                        <button id="theme-toggle" class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-[#f5f2f0] dark:bg-[#2a2a2a] text-[#181411] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                            <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                                <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                                <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88A104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                            </svg>
+                            <span id="theme-text">Theme</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="flex-1 bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="max-w-7xl mx-auto px-6 py-8">
+                    
+                    <!-- Header Section -->
+                    <div class="text-center mb-12">
+                        <h1 class="text-4xl font-black text-[#181411] dark:text-white mb-4">Bengaluru Road Safety Analytics</h1>
+                        <p class="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">Official Bengaluru Police data analysis of traffic accidents and safety patterns from 1976-2025 (June)</p>
+                    </div>
+
+                    <!-- Key Metrics Dashboard -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                        <div class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-6 border border-red-200 dark:border-red-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-red-600 dark:text-red-400 mb-1">Total Accidents (2024)</p>
+                                    <p class="text-3xl font-bold text-red-700 dark:text-red-300">4,351</p>
+                                    <p class="text-xs text-red-500 dark:text-red-400 flex items-center mt-1">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                                        12.5% decrease from 2023
+                                    </p>
+                                </div>
+                                <div class="bg-red-200 dark:bg-red-700 p-3 rounded-full">
+                                    <svg class="w-6 h-6 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-6 border border-orange-200 dark:border-orange-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-orange-600 dark:text-orange-400 mb-1">Fatal Accidents (2024)</p>
+                                    <p class="text-3xl font-bold text-orange-700 dark:text-orange-300">780</p>
+                                    <p class="text-xs text-orange-500 dark:text-orange-400 flex items-center mt-1">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                                        11.6% decrease from 2023
+                                    </p>
+                                </div>
+                                <div class="bg-orange-200 dark:bg-orange-700 p-3 rounded-full">
+                                    <svg class="w-6 h-6 text-orange-600 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">Fatality Rate (2024)</p>
+                                    <p class="text-3xl font-bold text-blue-700 dark:text-blue-300">17.9%</p>
+                                    <p class="text-xs text-blue-500 dark:text-blue-400 flex items-center mt-1">
+                                        <svg class="w-3 h-3 mr-1 rotate-180" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                                        0.2% increase from 2023
+                                    </p>
+                                </div>
+                                <div class="bg-blue-200 dark:bg-blue-700 p-3 rounded-full">
+                                    <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-6 border border-purple-200 dark:border-purple-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-purple-600 dark:text-purple-400 mb-1">Critical Stations</p>
+                                    <p class="text-3xl font-bold text-purple-700 dark:text-purple-300">2</p>
+                                    <p class="text-xs text-purple-500 dark:text-purple-400 mt-1">Yalahanka & Int. Airport</p>
+                                </div>
+                                <div class="bg-purple-200 dark:bg-purple-700 p-3 rounded-full">
+                                    <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                        <!-- Historical Trends Chart -->
+                        <div class="bg-white dark:bg-[#2a2a2a] rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-[#181411] dark:text-white">Historical Accident Trends</h3>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">1976-2025 (Official Data)</div>
+                            </div>
+                            <div class="relative" style="height: 300px;">
+                                <canvas id="trendsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Zone Distribution Chart -->
+                        <div class="bg-white dark:bg-[#2a2a2a] rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-[#181411] dark:text-white">Fatal Accidents by Zone (2024)</h3>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">Total: 780 (Full Year)</div>
+                            </div>
+                            <div class="relative" style="height: 300px;">
+                                <canvas id="zonesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Critical Areas Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                        <!-- Top Risk Stations -->
+                        <div class="lg:col-span-2 bg-white dark:bg-[#2a2a2a] rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6">
+                            <h3 class="text-xl font-bold text-[#181411] dark:text-white mb-6">Top 10 High-Risk Police Stations (2024)</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                                        <div>
+                                            <p class="font-semibold text-[#181411] dark:text-white">Yalahanka</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Traffic North Zone</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-lg font-bold text-red-600 dark:text-red-400">47</p>
+                                        <p class="text-xs text-red-500">Critical Risk</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                                        <div>
+                                            <p class="font-semibold text-[#181411] dark:text-white">Int. Airport</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Traffic North Zone</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-lg font-bold text-red-600 dark:text-red-400">47</p>
+                                        <p class="text-xs text-red-500">Critical Risk</p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                                            <span class="font-medium text-[#181411] dark:text-white">Electronic City</span>
+                                        </div>
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">38</span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">4</div>
+                                            <span class="font-medium text-[#181411] dark:text-white">Whitefield</span>
+                                        </div>
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">35</span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-6 h-6 bg-gray-500 text-white rounded-full flex items-center justify-center text-xs font-bold">5</div>
+                                            <span class="font-medium text-[#181411] dark:text-white">Hebbala</span>
+                                        </div>
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">30</span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-6 h-6 bg-gray-500 text-white rounded-full flex items-center justify-center text-xs font-bold">6</div>
+                                            <span class="font-medium text-[#181411] dark:text-white">K R Puram</span>
+                                        </div>
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">28</span>
+                                    </div>
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-6 h-6 bg-gray-500 text-white rounded-full flex items-center justify-center text-xs font-bold">7</div>
+                                            <span class="font-medium text-[#181411] dark:text-white">Kengeri</span>
+                                        </div>
+                                        <span class="font-bold text-gray-700 dark:text-gray-300">28</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Key Insights -->
+                        <div class="space-y-6">
+                            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-6 border border-green-200 dark:border-green-700">
+                                <div class="flex items-start space-x-3">
+                                    <div class="bg-green-500 p-2 rounded-full">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-green-700 dark:text-green-300 mb-2">Positive Trend</h4>
+                                        <p class="text-sm text-green-600 dark:text-green-400">Overall accidents decreased by 20.2% in 2024, showing significant improvement in road safety measures.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-6 border border-red-200 dark:border-red-700">
+                                <div class="flex items-start space-x-3">
+                                    <div class="bg-red-500 p-2 rounded-full">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-red-700 dark:text-red-300 mb-2">Critical Focus</h4>
+                                        <p class="text-sm text-red-600 dark:text-red-400">Traffic North zone accounts for 38.9% of all fatal accidents. Immediate intervention required.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-6 border border-blue-200 dark:border-blue-700">
+                                <div class="flex items-start space-x-3">
+                                    <div class="bg-blue-500 p-2 rounded-full">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-blue-700 dark:text-blue-300 mb-2">Action Required</h4>
+                                        <p class="text-sm text-blue-600 dark:text-blue-400">Deploy 40% of safety resources to northern corridors, especially airport route areas.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <!-- Zone Performance Comparison -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6">
+                        <h3 class="text-xl font-bold text-[#181411] dark:text-white mb-6">Zone Performance Analysis (2024)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-700">
+                                <div class="text-center">
+                                    <h4 class="font-bold text-red-700 dark:text-red-300">Traffic North</h4>
+                                    <p class="text-2xl font-bold text-red-600 dark:text-red-400 my-2">274</p>
+                                    <p class="text-sm text-red-500">38.9% of total fatalities</p>
+                                    <div class="mt-3 bg-red-200 dark:bg-red-700 h-2 rounded-full">
+                                        <div class="bg-red-500 h-2 rounded-full" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
+                                <div class="text-center">
+                                    <h4 class="font-bold text-orange-700 dark:text-orange-300">Traffic South</h4>
+                                    <p class="text-2xl font-bold text-orange-600 dark:text-orange-400 my-2">156</p>
+                                    <p class="text-sm text-orange-500">22.1% of total fatalities</p>
+                                    <div class="mt-3 bg-orange-200 dark:bg-orange-700 h-2 rounded-full">
+                                        <div class="bg-orange-500 h-2 rounded-full" style="width: 57%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                                <div class="text-center">
+                                    <h4 class="font-bold text-yellow-700 dark:text-yellow-300">Traffic East</h4>
+                                    <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400 my-2">142</p>
+                                    <p class="text-sm text-yellow-600">20.1% of total fatalities</p>
+                                    <div class="mt-3 bg-yellow-200 dark:bg-yellow-700 h-2 rounded-full">
+                                        <div class="bg-yellow-500 h-2 rounded-full" style="width: 52%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
+                                <div class="text-center">
+                                    <h4 class="font-bold text-green-700 dark:text-green-300">Traffic West</h4>
+                                    <p class="text-2xl font-bold text-green-600 dark:text-green-400 my-2">133</p>
+                                    <p class="text-sm text-green-500">18.9% of total fatalities</p>
+                                    <div class="mt-3 bg-green-200 dark:bg-green-700 h-2 rounded-full">
+                                        <div class="bg-green-500 h-2 rounded-full" style="width: 49%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="flex w-full flex-1 flex-col">
+                    <footer class="flex flex-col gap-6 px-0 py-10 text-center @container">
+                        <div class="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
+                            <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="#">About</a>
+                            <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="#">Data Source</a>
+                            <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="#">Contact</a>
+                            <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="https://github.com/ZahidRasoolWani/MajorProject" target="_blank">GitHub</a>
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-4">
+                            <a href="https://github.com/ZahidRasoolWani/MajorProject" target="_blank" class="hover:opacity-75 transition-opacity">
+                                <div class="text-[#8a7260] dark:text-gray-400 transition-colors duration-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                                        <path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"></path>
+                                    </svg>
+                                </div>
+                            </a>
+                        </div>
+                        <p class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal transition-colors duration-300">This project is proudly open-source. Contributions welcome!</p>
+                    </footer>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Official Bengaluru Police Data (1976-2025)
+        const realData = {
+            years: [1976, 1985, 1995, 2005, 2015, 2020, 2022, 2023, 2024, 2025],
+            total_accidents: [2516, 4805, 0, 7578, 4828, 3236, 3822, 4974, 4351, 2279],
+            fatal_accidents: [175, 403, 0, 796, 714, 622, 752, 882, 780, 289],
+            killed: [187, 441, 0, 836, 741, 647, 772, 910, 802, 306],
+            injured: [2374, 3892, 0, 5899, 4047, 2760, 3189, 4191, 3685, 2047],
+            fatality_rates: [7.0, 8.4, 0, 10.5, 14.8, 19.2, 19.7, 17.7, 17.9, 12.7]
+        };
+
+        // Zone data - consistent with 2024 metrics
+        const zonesData = {
+            zones: ['Traffic North', 'Traffic South', 'Traffic East', 'Traffic West'],
+            fatal_counts: [274, 156, 142, 133],
+            colors: ['#E74C3C', '#F39C12', '#F1C40F', '#2ECC71']
+        };
+
+        // Theme management
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const themeText = document.getElementById('theme-text');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Light';
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Dark';
+            }
+        }
+
+        // Initialize theme
+        const isDarkMode = localStorage.theme === 'dark' || 
+                           (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDarkMode) {
+            html.classList.add('dark');
+        }
+        updateThemeIcon(isDarkMode);
+
+        // Theme toggle event
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyDark = html.classList.contains('dark');
+            
+            if (isCurrentlyDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+            
+            setTimeout(() => updateChartsForTheme(), 100);
+        });
+
+        // Chart configuration
+        function getChartTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            return {
+                backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
+                textColor: isDark ? '#ffffff' : '#181411',
+                gridColor: isDark ? '#404040' : '#f0f0f0'
+            };
+        }
+
+        // Create charts
+        function createTrendsChart() {
+            const ctx = document.getElementById('trendsChart');
+            if (!ctx) return null;
+            
+            const theme = getChartTheme();
+            
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: realData.years,
+                    datasets: [{
+                        label: 'Total Accidents',
+                        data: realData.total_accidents,
+                        borderColor: '#f48733',
+                        backgroundColor: 'rgba(244, 135, 51, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#f48733',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }, {
+                        label: 'Fatal Accidents',
+                        data: realData.fatal_accidents,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: false,
+                        pointBackgroundColor: '#e74c3c',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: theme.textColor,
+                                font: { family: 'Inter', size: 12 },
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#666666',
+                            borderWidth: 1,
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year',
+                                color: theme.textColor,
+                                font: { family: 'Inter', weight: 'bold' }
+                            },
+                            ticks: { color: theme.textColor },
+                            grid: { color: theme.gridColor, drawBorder: false }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Number of Accidents',
+                                color: theme.textColor,
+                                font: { family: 'Inter', weight: 'bold' }
+                            },
+                            ticks: { 
+                                color: theme.textColor,
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            },
+                            grid: { color: theme.gridColor, drawBorder: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createZonesChart() {
+            const ctx = document.getElementById('zonesChart');
+            if (!ctx) return null;
+            
+            const theme = getChartTheme();
+            
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: zonesData.zones,
+                    datasets: [{
+                        data: zonesData.fatal_counts,
+                        backgroundColor: zonesData.colors,
+                        borderColor: theme.backgroundColor,
+                        borderWidth: 4,
+                        hoverBorderWidth: 6,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: theme.textColor,
+                                font: { family: 'Inter', size: 11 },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#666666',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return context.label + ': ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        // Export functionality
+        document.getElementById('export-btn').addEventListener('click', function() {
+            this.textContent = 'Generating...';
+            this.disabled = true;
+            
+            setTimeout(() => {
+                const reportData = {
+                    generated: new Date().toISOString(),
+                    summary: {
+                        totalAccidents2024: 3969,
+                        fatalAccidents2024: 705,
+                        fatalityRate2024: '17.8%',
+                        improvement: {
+                            totalChange: '-20.2%',
+                            fatalChange: '-20.1%'
+                        },
+                        criticalZones: ['Traffic North (38.9%)', 'Traffic South (22.1%)'],
+                        topRiskStations: ['Yalahanka (47 fatal)', 'Int. Airport (47 fatal)', 'Electronic City (38 fatal)']
+                    },
+                    historicalTrends: realData,
+                    zoneAnalysis: zonesData,
+                    recommendations: [
+                        'Deploy 40% of safety resources to Traffic North zone',
+                        'Enhanced monitoring at Yalahanka and Airport corridors',
+                        'Install speed cameras on high-risk routes',
+                        'Implement AI-powered traffic monitoring',
+                        'Reduce emergency response time in critical zones'
+                    ]
+                };
+
+                const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `bengaluru-safety-analytics-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.textContent = 'Export Report';
+                this.disabled = false;
+            }, 1000);
+        });
+
+        // Chart initialization
+        let trendsChart, zonesChart;
+
+        function initCharts() {
+            try {
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js not available');
+                    return;
+                }
+                
+                if (trendsChart) trendsChart.destroy();
+                if (zonesChart) zonesChart.destroy();
+
+                trendsChart = createTrendsChart();
+                zonesChart = createZonesChart();
+                
+                console.log('Charts initialized successfully');
+            } catch (error) {
+                console.error('Error initializing charts:', error);
+            }
+        }
+
+        function updateChartsForTheme() {
+            setTimeout(initCharts, 200);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Chart === 'undefined') {
+                setTimeout(() => {
+                    if (typeof Chart !== 'undefined') {
+                        initCharts();
+                    }
+                }, 1000);
+            } else {
+                initCharts();
+            }
+        });
+
+        // System theme listener
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!('theme' in localStorage)) {
+                if (e.matches) {
+                    html.classList.add('dark');
+                    updateThemeIcon(true);
+                } else {
+                    html.classList.remove('dark');
+                    updateThemeIcon(false);
+                }
+                setTimeout(updateChartsForTheme, 100);
+            }
+        });
+    </script>
+</body>
+</html>

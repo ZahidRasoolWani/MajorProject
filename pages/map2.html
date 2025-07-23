@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&amp;family=Inter%3Awght%40400%3B500%3B700%3B900&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Bengaluru Traffic Insights - Accident Analysis</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', "Noto Sans", sans-serif; }
+        .search-focus:focus { box-shadow: 0 0 0 3px rgba(244, 135, 51, 0.2); }
+        .station-card { transition: all 0.3s ease; }
+        .station-card:hover { transform: translateY(-4px); }
+        .risk-critical { border-left: 4px solid #dc2626; }
+        .risk-high { border-left: 4px solid #ea580c; }
+        .risk-medium { border-left: 4px solid #f59e0b; }
+        .risk-low { border-left: 4px solid #10b981; }
+        .risk-very-low { border-left: 4px solid #22c55e; }
+        .chart-container { position: relative; height: 300px; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+    <!-- Header - Same as main site -->
+    <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-300 dark:border-gray-600 px-10 py-3 shadow-sm bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="flex items-center gap-4 text-[#181411] dark:text-white">
+            <div class="size-4">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                </svg>
+            </div>
+            <h2 class="text-[#181411] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Bengaluru Traffic Insights</h2>
+        </div>
+        <div class="flex flex-1 justify-end gap-8">
+            <div class="flex items-center gap-9">
+                <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="../index.html">Home</a>
+                <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="heatmap.html">Real-Time Traffic</a>
+                <a class="text-[#f48733] dark:text-[#f48733] text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="#">Accident Analysis</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <div x-data="{ open: false }" class="relative">
+                    <button @click="open = !open" class="flex items-center justify-center min-w-[84px] h-10 px-4 rounded-full bg-[#f48733] text-[#181411] text-sm font-bold tracking-[0.015em] transition-all duration-200 hover:bg-[#e37527] hover:shadow-md">
+                        Explore
+                        <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-transition class="absolute left-0 mt-2 w-56 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50">
+                        <a href="../src/bmtc2.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">BMTC Bus</a>
+                        <a href="bikeban.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">Bike Taxi Ban Analysis</a>
+                        <a href="vehicle2.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">Vehicle Analysis</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-[#f48733] font-semibold hover:bg-gray-100 dark:hover:bg-gray-700">Accident Analysis</a>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-[#f5f2f0] dark:bg-[#2a2a2a] text-[#181411] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                        <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                        <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88,104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                    </svg>
+                    <span id="theme-text">Theme</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="px-0 w-full flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="layout-content-container flex flex-col w-full flex-1">
+            <!-- Hero Section -->
+            <div class="@container">
+                <div class="@[480px]:p-4">
+                    <div class="flex min-h-[280px] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-start justify-end px-4 pb-10 @[480px]:px-10" 
+                         style='background-image: linear-gradient(rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.6) 100%), url("/src/accident\ image.png");'>
+                        <div class="flex flex-col gap-2 text-left">
+                            <h1 class="text-white text-4xl font-black leading-tight tracking-[-0.033em] @[480px]:text-5xl">
+                                Accident Analysis Dashboard
+                            </h1>
+                            <h2 class="text-white text-sm font-normal leading-normal @[480px]:text-base">
+                                Comprehensive accident statistics and safety insights for Bengaluru traffic zones
+                            </h2>
+                        </div>
+                        <button onclick="scrollToAnalytics()" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#f48733] text-[#181411] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base hover:bg-[#e37527] transition-colors">
+                            <span class="truncate">View Analytics</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <section class="container mx-auto px-6 py-8">
+                <h2 class="text-center text-[#181411] dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-6 transition-colors duration-300">Key Statistics</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center">
+                            <div class="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Critical Risk Stations</p>
+                                <p class="text-2xl font-bold text-red-600 dark:text-red-400 pulse-animation">3</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center">
+                            <div class="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">High Risk Stations</p>
+                                <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">8</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Total Stations</p>
+                                <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="totalStations">51</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center">
+                            <div class="bg-[#f48733]/20 p-3 rounded-full">
+                                <svg class="w-6 h-6 text-[#f48733]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Total Accidents</p>
+                                <p class="text-2xl font-bold text-[#f48733]" id="totalAccidents">30,610</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" id="analytics">
+                    <!-- Zone Distribution Chart -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <h3 class="text-lg font-bold text-[#181411] dark:text-white mb-4">Accidents by Traffic Zone</h3>
+                        <div class="chart-container">
+                            <canvas id="zoneChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Risk Level Distribution -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <h3 class="text-lg font-bold text-[#181411] dark:text-white mb-4">Risk Level Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="riskChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top 10 Stations Chart -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300 lg:col-span-2">
+                        <h3 class="text-lg font-bold text-[#181411] dark:text-white mb-4">Top 10 Accident Prone Stations</h3>
+                        <div class="chart-container" style="height: 400px;">
+                            <canvas id="topStationsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search and Filter Controls -->
+                <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 mb-8 transition-colors duration-300">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2 transition-colors duration-300">Search Police Station</label>
+                            <input type="text" id="searchInput" placeholder="Type station name (e.g., K.R. Pura, Yelahanka...)" 
+                                   class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none search-focus bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2 transition-colors duration-300">Filter by Zone</label>
+                            <select id="zoneFilter" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none search-focus bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                                <option value="all">All Zones</option>
+                                <option value="Traffic North">Traffic North</option>
+                                <option value="Traffic East">Traffic East</option>
+                                <option value="Traffic West">Traffic West</option>
+                                <option value="Traffic South">Traffic South</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2 transition-colors duration-300">Sort by</label>
+                            <select id="sortSelect" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none search-focus bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                                <option value="accidents-desc">Accidents (High to Low)</option>
+                                <option value="accidents-asc">Accidents (Low to High)</option>
+                                <option value="name-asc">Name (A to Z)</option>
+                                <option value="zone-asc">Zone</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Filters Display -->
+                    <div id="activeFilters" class="mt-4 flex flex-wrap gap-2 hidden">
+                        <span class="text-sm text-[#181411] dark:text-white">Active filters:</span>
+                    </div>
+                </div>
+
+                <!-- Police Stations Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fade-in" id="stationsGrid">
+                    <!-- Station cards will be dynamically generated here -->
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingState" class="hidden text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f48733]"></div>
+                    <p class="mt-2 text-[#181411] dark:text-white">Loading stations...</p>
+                </div>
+
+                <!-- Detailed View Modal -->
+                <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50" onclick="closeModal()">
+                    <div class="flex items-center justify-center min-h-screen p-4">
+                        <div class="bg-white dark:bg-[#2a2a2a] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-300" onclick="event.stopPropagation()">
+                            <div class="p-6">
+                                <div class="flex items-start justify-between mb-4">
+                                    <h2 id="modalTitle" class="text-2xl font-bold text-[#181411] dark:text-white transition-colors duration-300"></h2>
+                                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="modalContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer - Same as main site -->
+    <footer class="flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="flex w-full flex-1 flex-col">
+            <footer class="flex flex-col gap-6 px-0 py-10 text-center @container">
+                <div class="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
+                    <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="#">Bengaluru Traffic Insights</a>
+                </div>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <a href="#" class="hover:opacity-75 transition-opacity">
+                        <div class="text-[#8a7260] dark:text-gray-400 transition-colors duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                                <path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"></path>
+                            </svg>
+                        </div>
+                    </a>
+                </div>
+                <p class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal transition-colors duration-300">This project is proudly open-source. Contributions welcome!</p>
+            </footer>
+        </div>
+    </footer>
+
+    <script>
+        // Police station data
+        const stationsData = [
+            { name: "K.R. Pura", accidents: 1716, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Yelahanka", accidents: 1660, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Kamakshipalya", accidents: 1421, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "Devanahalli Airport", accidents: 1315, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Chikkajala", accidents: 1292, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Electronic City", accidents: 1291, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Whitefield", accidents: 1199, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Kengeri", accidents: 1195, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "K.S. Layout", accidents: 1165, zone: "Traffic West", subdivision: "South Sub Division" },
+            { name: "Byatarayanapura", accidents: 1040, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Hebbal", accidents: 1008, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Yeshwanthpura", accidents: 799, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Banaswadi", accidents: 761, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Hulimavu", accidents: 750, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Jalahalli", accidents: 732, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Vijayanagara", accidents: 693, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "HAL Old Airport", accidents: 630, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Banashankari", accidents: 627, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Rajajinagar", accidents: 592, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Jayanagara", accidents: 576, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Jeevanbheemanagar", accidents: 567, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Mico Layout", accidents: 555, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "HSR Layout", accidents: 552, zone: "Traffic East", subdivision: "HSR Layout Sub Division" },
+            { name: "Basavanagudi", accidents: 543, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "R.T. Nagar", accidents: 527, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Madiwala", accidents: 526, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Malleshwaram", accidents: 522, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Halasur", accidents: 505, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Sadashivanagar", accidents: 474, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Wilson Garden", accidents: 418, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "High Ground", accidents: 388, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Halaguru Gate", accidents: 362, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Cubbon Park", accidents: 338, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Ashok Nagar", accidents: 336, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Adugodi", accidents: 331, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Chicket", accidents: 328, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Thalagattapura", accidents: 295, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Hennuru", accidents: 274, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Magadevapura", accidents: 272, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Magadi Road", accidents: 258, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "Upparpet", accidents: 255, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "V.V.Puram", accidents: 246, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "K.G. Halli", accidents: 244, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Jnanabharathi", accidents: 206, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Shivajinagar", accidents: 175, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "City Market", accidents: 161, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Pulikeshingar", accidents: 153, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Bellandur", accidents: 140, zone: "Traffic South", subdivision: "HSR Layout Sub Division" },
+            { name: "Chikkabanavara", accidents: 140, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Sanjayanagar", accidents: 44, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "J.P. Nagar", accidents: 13, zone: "Traffic South", subdivision: "South Sub Division" }
+        ];
+
+        let zoneChart, riskChart, topStationsChart;
+
+        // Theme functionality
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const themeText = document.getElementById('theme-text');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Light';
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Dark';
+            }
+        }
+
+        const isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDarkMode) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+        
+        updateThemeIcon(isDarkMode);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyDark = html.classList.contains('dark');
+            
+            if (isCurrentlyDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+            
+            // Update charts for theme change
+            setTimeout(updateChartsForTheme, 100);
+        });
+
+        // Utility functions
+        function getRiskInfo(accidents) {
+            if (accidents >= 1200) return { level: 'Critical', class: 'risk-critical', color: '#dc2626', bgColor: 'bg-red-50 dark:bg-red-900/30' };
+            if (accidents >= 800) return { level: 'High', class: 'risk-high', color: '#ea580c', bgColor: 'bg-orange-50 dark:bg-orange-900/30' };
+            if (accidents >= 400) return { level: 'Medium', class: 'risk-medium', color: '#f59e0b', bgColor: 'bg-yellow-50 dark:bg-yellow-900/30' };
+            if (accidents >= 100) return { level: 'Low', class: 'risk-low', color: '#10b981', bgColor: 'bg-green-50 dark:bg-green-900/30' };
+            return { level: 'Very Low', class: 'risk-very-low', color: '#22c55e', bgColor: 'bg-green-50 dark:bg-green-900/30' };
+        }
+
+        function getTextColor() {
+            return html.classList.contains('dark') ? '#ffffff' : '#181411';
+        }
+
+        function getGridColor() {
+            return html.classList.contains('dark') ? '#374151' : '#e5e7eb';
+        }
+
+        function scrollToAnalytics() {
+            document.getElementById('analytics').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Create station card
+        function createStationCard(station) {
+            const risk = getRiskInfo(station.accidents);
+            return `
+                <div class="station-card bg-white dark:bg-[#2a2a2a] rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 p-6 cursor-pointer ${risk.class} transition-colors duration-300" 
+                     onclick="showDetails('${station.name}')">
+                    <div class="flex items-start justify-between mb-3">
+                        <h3 class="text-lg font-bold text-[#181411] dark:text-white transition-colors duration-300">${station.name}</h3>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${risk.bgColor} transition-colors duration-300" style="color: ${risk.color}">
+                            ${risk.level}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Accidents</span>
+                            <span class="text-xl font-bold transition-colors duration-300" style="color: ${risk.color}">${station.accidents.toLocaleString()}</span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Zone</span>
+                            <span class="text-sm font-medium text-[#181411] dark:text-white transition-colors duration-300">${station.zone}</span>
+                        </div>
+                        
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-3 transition-colors duration-300">
+                            ${station.subdivision}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <span class="text-xs text-[#f48733] font-medium">Click for details →</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Charts initialization
+        function initializeCharts() {
+            // Zone Distribution Chart
+            const zoneData = {};
+            stationsData.forEach(station => {
+                const zone = station.zone.replace('Traffic ', '');
+                zoneData[zone] = (zoneData[zone] || 0) + station.accidents;
+            });
+
+            const zoneCtx = document.getElementById('zoneChart').getContext('2d');
+            zoneChart = new Chart(zoneCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(zoneData),
+                    datasets: [{
+                        data: Object.values(zoneData),
+                        backgroundColor: ['#f48733', '#3b82f6', '#10b981', '#f59e0b'],
+                        borderWidth: 2,
+                        borderColor: getTextColor()
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: getTextColor(),
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Risk Distribution Chart
+            const riskData = { 'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0, 'Very Low': 0 };
+            stationsData.forEach(station => {
+                const risk = getRiskInfo(station.accidents);
+                riskData[risk.level]++;
+            });
+
+            const riskCtx = document.getElementById('riskChart').getContext('2d');
+            riskChart = new Chart(riskCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(riskData),
+                    datasets: [{
+                        label: 'Number of Stations',
+                        data: Object.values(riskData),
+                        backgroundColor: ['#dc2626', '#ea580c', '#f59e0b', '#10b981', '#22c55e'],
+                        borderWidth: 1,
+                        borderColor: getTextColor()
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: getTextColor()
+                            },
+                            grid: {
+                                color: getGridColor()
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: getTextColor()
+                            },
+                            grid: {
+                                color: getGridColor()
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Top 10 Stations Chart
+            const top10 = stationsData.slice(0, 10);
+            const topStationsCtx = document.getElementById('topStationsChart').getContext('2d');
+            topStationsChart = new Chart(topStationsCtx, {
+                type: 'bar',
+                data: {
+                    labels: top10.map(station => station.name),
+                    datasets: [{
+                        label: 'Accidents',
+                        data: top10.map(station => station.accidents),
+                        backgroundColor: top10.map(station => {
+                            const risk = getRiskInfo(station.accidents);
+                            return risk.color;
+                        }),
+                        borderWidth: 1,
+                        borderColor: getTextColor()
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                color: getTextColor()
+                            },
+                            grid: {
+                                color: getGridColor()
+                            }
+                        },
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: getTextColor()
+                            },
+                            grid: {
+                                color: getGridColor()
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartsForTheme() {
+            const textColor = getTextColor();
+            const gridColor = getGridColor();
+
+            [zoneChart, riskChart, topStationsChart].forEach(chart => {
+                if (chart) {
+                    // Update legend colors
+                    if (chart.options.plugins.legend) {
+                        chart.options.plugins.legend.labels.color = textColor;
+                    }
+                    
+                    // Update scale colors
+                    if (chart.options.scales) {
+                        Object.keys(chart.options.scales).forEach(scale => {
+                            if (chart.options.scales[scale].ticks) {
+                                chart.options.scales[scale].ticks.color = textColor;
+                            }
+                            if (chart.options.scales[scale].grid) {
+                                chart.options.scales[scale].grid.color = gridColor;
+                            }
+                        });
+                    }
+                    
+                    chart.update();
+                }
+            });
+        }
+
+        // Filter and sort stations
+        function filterAndSortStations() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const zoneFilter = document.getElementById('zoneFilter').value;
+            const sortBy = document.getElementById('sortSelect').value;
+
+            let filteredStations = stationsData.filter(station => {
+                const matchesSearch = station.name.toLowerCase().includes(searchTerm);
+                const matchesZone = zoneFilter === 'all' || station.zone === zoneFilter;
+                return matchesSearch && matchesZone;
+            });
+
+            // Sort stations
+            switch (sortBy) {
+                case 'accidents-desc':
+                    filteredStations.sort((a, b) => b.accidents - a.accidents);
+                    break;
+                case 'accidents-asc':
+                    filteredStations.sort((a, b) => a.accidents - b.accidents);
+                    break;
+                case 'name-asc':
+                    filteredStations.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'zone-asc':
+                    filteredStations.sort((a, b) => a.zone.localeCompare(b.zone));
+                    break;
+            }
+
+            updateActiveFilters(searchTerm, zoneFilter);
+            return filteredStations;
+        }
+
+        function updateActiveFilters(searchTerm, zoneFilter) {
+            const activeFiltersDiv = document.getElementById('activeFilters');
+            let filters = [];
+            
+            if (searchTerm) filters.push(`Search: "${searchTerm}"`);
+            if (zoneFilter !== 'all') filters.push(`Zone: ${zoneFilter}`);
+            
+            if (filters.length > 0) {
+                activeFiltersDiv.innerHTML = `
+                    <span class="text-sm text-[#181411] dark:text-white transition-colors duration-300">Active filters:</span>
+                    ${filters.map(filter => `<span class="px-2 py-1 bg-[#f48733] text-white text-xs rounded-full">${filter}</span>`).join('')}
+                    <button onclick="clearFilters()" class="px-2 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-full transition-colors duration-300">Clear all</button>
+                `;
+                activeFiltersDiv.classList.remove('hidden');
+            } else {
+                activeFiltersDiv.classList.add('hidden');
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('zoneFilter').value = 'all';
+            renderStations();
+        }
+
+        // Render stations
+        function renderStations() {
+            const loadingState = document.getElementById('loadingState');
+            const grid = document.getElementById('stationsGrid');
+            
+            // Show loading state
+            loadingState.classList.remove('hidden');
+            grid.classList.add('hidden');
+            
+            setTimeout(() => {
+                const filteredStations = filterAndSortStations();
+                
+                if (filteredStations.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full text-center py-12">
+                            <div class="text-gray-400 dark:text-gray-500 mb-4 transition-colors duration-300">
+                                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-[#181411] dark:text-white mb-2 transition-colors duration-300">No stations found</h3>
+                            <p class="text-gray-500 dark:text-gray-400 transition-colors duration-300">Try adjusting your search or filter criteria</p>
+                            <button onclick="clearFilters()" class="mt-4 px-4 py-2 bg-[#f48733] text-white rounded-lg hover:bg-[#e37527] transition-colors">Clear Filters</button>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = filteredStations.map(createStationCard).join('');
+                }
+                
+                // Update total count
+                document.getElementById('totalStations').textContent = filteredStations.length;
+                
+                // Hide loading state and show grid
+                loadingState.classList.add('hidden');
+                grid.classList.remove('hidden');
+                grid.classList.add('fade-in');
+            }, 300);
+        }
+
+        // Show detailed view
+        function showDetails(stationName) {
+            const station = stationsData.find(s => s.name === stationName);
+            if (!station) return;
+
+            const risk = getRiskInfo(station.accidents);
+            const modal = document.getElementById('detailModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            title.textContent = station.name + ' Police Station';
+            
+            // Calculate percentile
+            const sortedAccidents = stationsData.map(s => s.accidents).sort((a, b) => b - a);
+            const rank = sortedAccidents.indexOf(station.accidents) + 1;
+            const percentile = Math.round((1 - rank / stationsData.length) * 100);
+            
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg transition-colors duration-300">
+                            <h4 class="font-semibold text-[#181411] dark:text-white mb-2 transition-colors duration-300">Accident Statistics</h4>
+                            <div class="text-3xl font-bold mb-1" style="color: ${risk.color}">${station.accidents.toLocaleString()}</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Total accidents recorded</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-500 mt-1 transition-colors duration-300">Rank: #${rank} of ${stationsData.length} stations (${percentile}th percentile)</div>
+                        </div>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg transition-colors duration-300">
+                            <h4 class="font-semibold text-[#181411] dark:text-white mb-2 transition-colors duration-300">Risk Assessment</h4>
+                            <div class="text-xl font-bold mb-1" style="color: ${risk.color}">${risk.level} Risk</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Based on accident frequency</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg transition-colors duration-300">
+                            <h4 class="font-semibold text-[#181411] dark:text-white mb-2 transition-colors duration-300">Administrative Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="text-[#181411] dark:text-white transition-colors duration-300"><strong>Traffic Zone:</strong> ${station.zone}</div>
+                                <div class="text-[#181411] dark:text-white transition-colors duration-300"><strong>Sub Division:</strong> ${station.subdivision}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-300">
+                            <h4 class="font-semibold text-blue-800 dark:text-blue-300 mb-2 transition-colors duration-300">Safety Recommendations</h4>
+                            <ul class="text-sm text-blue-700 dark:text-blue-300 space-y-1 transition-colors duration-300">
+                                ${station.accidents >= 1000 ? 
+                                    '<li>• Immediate traffic enforcement required</li><li>• Deploy additional patrol units</li><li>• Install speed monitoring systems</li><li>• Implement advanced traffic management systems</li>' :
+                                    station.accidents >= 500 ?
+                                    '<li>• Increased monitoring recommended</li><li>• Review traffic signal timing</li><li>• Community awareness programs</li><li>• Regular safety audits</li>' :
+                                    '<li>• Maintain current safety measures</li><li>• Regular patrol monitoring</li><li>• Preventive awareness campaigns</li>'
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', renderStations);
+        document.getElementById('zoneFilter').addEventListener('change', renderStations);
+        document.getElementById('sortSelect').addEventListener('change', renderStations);
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            renderStations();
+            initializeCharts();
+            
+            // Calculate and update total accidents
+            const totalAccidents = stationsData.reduce((sum, station) => sum + station.accidents, 0);
+            document.getElementById('totalAccidents').textContent = totalAccidents.toLocaleString();
+            
+            console.log('Bengaluru Traffic Accident Dashboard loaded successfully!');
+        });
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!('theme' in localStorage)) {
+                if (e.matches) {
+                    html.classList.add('dark');
+                    updateThemeIcon(true);
+                } else {
+                    html.classList.remove('dark');
+                    updateThemeIcon(false);
+                }
+                setTimeout(updateChartsForTheme, 100);
+            }
+        });
+    </script>
+</body>
+</html>

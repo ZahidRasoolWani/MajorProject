@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMTC Route Finder - Bengaluru Traffic Insights</title>
+    
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    
+    <style>
+        body {
+            font-family: Inter, "Noto Sans", sans-serif;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f48733;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#181411] dark:bg-[#1a1a1a] dark:text-white transition-colors duration-300">
+    <div class="relative flex size-full min-h-screen flex-col bg-white dark:bg-[#1a1a1a] group/design-root overflow-x-hidden transition-colors duration-300">
+        <div class="layout-container flex h-full grow flex-col">
+            
+            <!-- Header (same as landing page) -->
+            <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-300 dark:border-gray-600 px-10 py-3 shadow-sm bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="flex items-center gap-4 text-[#181411] dark:text-white">
+                    <div class="size-4">
+                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-[#181411] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Bengaluru Traffic Insights</h2>
+                </div>
+                <div class="flex flex-1 justify-end gap-8">
+                    <div class="flex items-center gap-9">
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="../index.html">Home</a>
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="heatmap.html">Real-Time Traffic</a>
+                        <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="#">Traffic Analysis</a>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Theme Toggle Button -->
+                        <button id="theme-toggle" class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-[#f5f2f0] dark:bg-[#2a2a2a] text-[#181411] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                            <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                                <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                                <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88A104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                            </svg>
+                            <span id="theme-text">Theme</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="px-10 w-full flex justify-center py-8 bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+                <div class="layout-content-container flex flex-col w-full max-w-6xl">
+                    
+                    <!-- Page Header -->
+                    <div class="text-center mb-8">
+                        <h1 class="text-[#181411] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] mb-4">BMTC Route Finder</h1>
+                        <p class="text-[#8a7260] dark:text-gray-400 text-lg">Find the best bus routes for your journey in Bengaluru</p>
+                    </div>
+
+                    <!-- Demo Notice -->
+                    <div id="demoNotice" class="hidden mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="font-semibold text-yellow-800 dark:text-yellow-300">Demo Mode</p>
+                                <p class="text-yellow-700 dark:text-yellow-400">Database not found. Showing sample data for demonstration.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Container -->
+                    <div id="messages-container" aria-live="polite" class="mb-6"></div>
+
+                    <!-- Step 1: Location -->
+                    <div id="locationStep" class="bg-white dark:bg-[#2a2a2a] rounded-xl p-8 shadow-lg mb-6 text-center transition-colors duration-300">
+                        <div class="mb-4">
+                            <span class="bg-[#f48733] text-white px-3 py-1 rounded-full text-sm font-semibold">STEP 1</span>
+                        </div>
+                        <h2 class="text-[#181411] dark:text-white text-2xl font-bold mb-4">Find Your Location</h2>
+                        <p class="text-[#8a7260] dark:text-gray-400 mb-6">We'll find nearby bus stops based on your current location</p>
+                        <button id="locationBtn" class="bg-[#f48733] hover:bg-[#e37527] text-white px-8 py-3 rounded-lg font-semibold transition-colors duration-200">
+                            Get My Location
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Select Stops -->
+                    <div id="routePlanningStep" class="hidden bg-white dark:bg-[#2a2a2a] rounded-xl p-8 shadow-lg mb-6 transition-colors duration-300">
+                        <div class="mb-4">
+                            <span class="bg-[#f48733] text-white px-3 py-1 rounded-full text-sm font-semibold">STEP 2</span>
+                        </div>
+                        <h2 class="text-[#181411] dark:text-white text-2xl font-bold mb-6">Plan Your Journey</h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <!-- From Stop -->
+                            <div>
+                                <label class="block text-[#181411] dark:text-white font-semibold mb-2">From Stop</label>
+                                <select id="fromStopSelect" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#3a3a3a] text-[#181411] dark:text-white focus:ring-2 focus:ring-[#f48733] focus:border-transparent transition-colors duration-300">
+                                    <option value="">Select your nearest stop...</option>
+                                </select>
+                            </div>
+
+                            <!-- To Stop -->
+                            <div>
+                                <label class="block text-[#181411] dark:text-white font-semibold mb-2">To Destination</label>
+                                <select id="toLocation" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#3a3a3a] text-[#181411] dark:text-white focus:ring-2 focus:ring-[#f48733] focus:border-transparent transition-colors duration-300">
+                                    <option value="">Select destination...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Max Transfers -->
+                            <div>
+                                <label class="block text-[#181411] dark:text-white font-semibold mb-2">Maximum Transfers</label>
+                                <select id="maxTransfers" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#3a3a3a] text-[#181411] dark:text-white focus:ring-2 focus:ring-[#f48733] focus:border-transparent transition-colors duration-300">
+                                    <option value="0">Direct Routes Only (No Transfers)</option>
+                                    <option value="1" selected>Up to 1 Transfer</option>
+                                    <option value="2">Up to 2 Transfers</option>
+                                    <option value="3">Up to 3 Transfers</option>
+                                </select>
+                            </div>
+
+                            <!-- Search Button -->
+                            <div class="flex items-end">
+                                <button id="searchBtn" disabled class="w-full bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 disabled:cursor-not-allowed">
+                                    Find Best Routes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="loading" class="hidden bg-white dark:bg-[#2a2a2a] rounded-xl p-8 shadow-lg mb-6 text-center transition-colors duration-300">
+                        <div class="loading-spinner mb-4"></div>
+                        <p id="loadingText" class="text-[#181411] dark:text-white font-semibold">Searching for routes...</p>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="results" class="hidden bg-white dark:bg-[#2a2a2a] rounded-xl p-8 shadow-lg mb-6 transition-colors duration-300">
+                        <h2 class="text-[#181411] dark:text-white text-2xl font-bold mb-6">Your Route Options</h2>
+                        <div id="routesList"></div>
+                    </div>
+
+                    <!-- Map -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg mb-6 transition-colors duration-300">
+                        <h3 class="text-[#181411] dark:text-white text-xl font-bold mb-4">Map View</h3>
+                        <div id="map"></div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="./bmtc_web_api.js"></script>
+    <script>
+        // Global variables
+        let api;
+        let map;
+        let userLocation = null;
+        let selectedFromStop = null;
+        let markers = [];
+        let isDemo = false;
+
+        // Initialize application
+        async function initApp() {
+            console.log('Initializing BMTC Route Finder...');
+            
+            // Initialize map
+            initMap();
+            
+            // Initialize API
+            api = new BMTCRouteAPI();
+            
+            try {
+                await api.initSQL();
+                console.log('Database loaded successfully!');
+                await loadAllDestinations();
+            } catch (error) {
+                console.warn('Database not available, switching to demo mode');
+                isDemo = true;
+                document.getElementById('demoNotice').classList.remove('hidden');
+                loadDemoDestinations();
+            }
+        }
+
+        function initMap() {
+            map = L.map('map').setView([12.9716, 77.5946], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Get user location
+        async function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                showError('Geolocation is not supported by this browser');
+                return;
+            }
+            
+            const locationBtn = document.getElementById('locationBtn');
+            locationBtn.disabled = true;
+            locationBtn.textContent = 'Getting Your Location...';
+            
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 300000
+                    });
+                });
+                
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                };
+                
+                // Center map on user location
+                map.setView([userLocation.lat, userLocation.lon], 16);
+                
+                // Add user location marker
+                const userMarker = L.marker([userLocation.lat, userLocation.lon], {
+                    icon: L.divIcon({
+                        html: '<div style="background: #f48733; border-radius: 50%; width: 20px; height: 20px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [20, 20],
+                        className: ''
+                    })
+                }).addTo(map);
+                userMarker.bindPopup('Your Location');
+                markers.push(userMarker);
+                
+                showSuccess('Location found! Finding nearby bus stops...');
+                
+                // Hide step 1, find nearby stops
+                document.getElementById('locationStep').classList.add('hidden');
+                await findNearbyStops();
+                
+            } catch (error) {
+                showError('Could not get your location: ' + error.message);
+                locationBtn.disabled = false;
+                locationBtn.textContent = 'Get My Location';
+            }
+        }
+
+        // Find nearby stops and populate dropdown
+        async function findNearbyStops() {
+            if (!userLocation) return;
+            
+            showLoading('Finding nearby bus stops...');
+            
+            try {
+                let nearbyStops;
+                
+                if (isDemo) {
+                    nearbyStops = [
+                        { stop_id: 'demo1', stop_name: 'Majestic Bus Stand', distance: 150, stop_lat: 12.9767, stop_lon: 77.5703 },
+                        { stop_id: 'demo2', stop_name: 'KR Market', distance: 280, stop_lat: 12.9591, stop_lon: 77.5742 },
+                        { stop_id: 'demo3', stop_name: 'City Railway Station', distance: 450, stop_lat: 12.9858, stop_lon: 77.5833 }
+                    ];
+                } else {
+                    nearbyStops = api.findNearbyStops(userLocation.lat, userLocation.lon, 1.5);
+                    nearbyStops = nearbyStops.slice(0, 3); // Limit to 3 nearest stops
+                }
+                
+                hideLoading();
+                populateFromStopDropdown(nearbyStops);
+                
+            } catch (error) {
+                hideLoading();
+                showError('Failed to find nearby stops: ' + error.message);
+            }
+        }
+
+        // Populate from stop dropdown
+        function populateFromStopDropdown(stops) {
+            const fromSelect = document.getElementById('fromStopSelect');
+            fromSelect.innerHTML = '<option value="">Select your nearest stop...</option>';
+            
+            if (stops.length === 0) {
+                fromSelect.innerHTML = '<option value="">No nearby stops found</option>';
+                return;
+            }
+
+            // Add stop markers to map
+            stops.forEach(stop => {
+                const marker = L.marker([stop.stop_lat, stop.stop_lon]).addTo(map);
+                marker.bindPopup(`<b>${stop.stop_name}</b><br>Distance: ${stop.distance}m`);
+                markers.push(marker);
+
+                // Add to dropdown
+                const option = document.createElement('option');
+                option.value = JSON.stringify(stop);
+                option.textContent = `${stop.stop_name} (${stop.distance}m away)`;
+                fromSelect.appendChild(option);
+            });
+
+            // Fit map to show all markers
+            if (markers.length > 1) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+
+            // Show route planning step
+            document.getElementById('routePlanningStep').classList.remove('hidden');
+        }
+
+        // Load destinations
+        async function loadAllDestinations() {
+            if (isDemo) {
+                loadDemoDestinations();
+                return;
+            }
+            
+            try {
+                showLoading('Loading bus stops from database...');
+                const allStops = api.getAllStops();
+                const toSelect = document.getElementById('toLocation');
+                toSelect.innerHTML = '<option value="">Select destination...</option>';
+                
+                allStops.forEach(stop => {
+                    const option = document.createElement('option');
+                    option.value = stop.stop_id;
+                    option.textContent = stop.stop_name;
+                    toSelect.appendChild(option);
+                });
+                
+                hideLoading();
+                
+            } catch (error) {
+                hideLoading();
+                loadDemoDestinations();
+            }
+        }
+
+        function loadDemoDestinations() {
+            const demoDestinations = [
+                'Electronic City (Demo)',
+                'Whitefield (Demo)', 
+                'Koramangala (Demo)',
+                'Silk Board (Demo)',
+                'Hebbal (Demo)'
+            ];
+            
+            const toSelect = document.getElementById('toLocation');
+            toSelect.innerHTML = '<option value="">Select destination...</option>';
+            
+            demoDestinations.forEach((dest, index) => {
+                const option = document.createElement('option');
+                option.value = `demo_dest_${index + 1}`;
+                option.textContent = dest;
+                toSelect.appendChild(option);
+            });
+        }
+
+        // Check if search can be enabled
+        function checkSearchReady() {
+            const fromStop = document.getElementById('fromStopSelect').value;
+            const toLocation = document.getElementById('toLocation').value;
+            const searchBtn = document.getElementById('searchBtn');
+            
+            if (fromStop && toLocation) {
+                searchBtn.disabled = false;
+                searchBtn.classList.remove('bg-gray-400');
+                searchBtn.classList.add('bg-[#f48733]', 'hover:bg-[#e37527]');
+            } else {
+                searchBtn.disabled = true;
+                searchBtn.classList.add('bg-gray-400');
+                searchBtn.classList.remove('bg-[#f48733]', 'hover:bg-[#e37527]');
+            }
+        }
+
+        // Find routes
+        async function findRoutes() {
+            const fromStopValue = document.getElementById('fromStopSelect').value;
+            const toLocationValue = document.getElementById('toLocation').value;
+            
+            if (!fromStopValue || !toLocationValue) {
+                showError('Please select both origin and destination');
+                return;
+            }
+            
+            selectedFromStop = JSON.parse(fromStopValue);
+            const maxTransfers = parseInt(document.getElementById('maxTransfers').value);
+            const toLocationText = document.getElementById('toLocation').selectedOptions[0].text;
+            
+            showLoading(`Finding routes from ${selectedFromStop.stop_name} to ${toLocationText}...`);
+            
+            try {
+                let routes;
+                
+                if (isDemo) {
+                    routes = getDemoRoutes(maxTransfers, toLocationText);
+                } else {
+                    routes = await api.findOptimalRoutes(selectedFromStop.stop_id, toLocationValue, maxTransfers);
+                }
+                
+                hideLoading();
+                displayResults(routes, toLocationText);
+                
+            } catch (error) {
+                hideLoading();
+                showError('Route search failed: ' + error.message);
+            }
+        }
+
+        // Demo routes function
+        function getDemoRoutes(maxTransfers, destination) {
+            const routes = [{
+                type: 'direct',
+                transfers: 0,
+                totalTime: 35,
+                legs: [{
+                    routeNumber: '335E',
+                    routeName: `${selectedFromStop.stop_name} - ${destination}`,
+                    departureTime: '09:15',
+                    arrivalTime: '09:50'
+                }]
+            }];
+            
+            if (maxTransfers >= 1) {
+                routes.push({
+                    type: 'transfer',
+                    transfers: 1,
+                    totalTime: 45,
+                    legs: [
+                        {
+                            routeNumber: '201',
+                            routeName: `${selectedFromStop.stop_name} - Intermediate Stop`,
+                            departureTime: '09:10',
+                            arrivalTime: '09:30'
+                        },
+                        {
+                            routeNumber: '500K',
+                            routeName: `Intermediate Stop - ${destination}`,
+                            departureTime: '09:35',
+                            arrivalTime: '09:55'
+                        }
+                    ]
+                });
+            }
+            
+            return routes;
+        }
+
+        // Display results
+        function displayResults(routes, destination) {
+            const routesListDiv = document.getElementById('routesList');
+            
+            if (routes.length === 0) {
+                routesListDiv.innerHTML = `
+                    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-6">
+                        <h3 class="text-lg font-bold text-red-800 dark:text-red-300 mb-2">No Routes Found</h3>
+                        <p class="text-red-600 dark:text-red-400">No routes found from <strong>${selectedFromStop.stop_name}</strong> to <strong>${destination}</strong>.</p>
+                        <p class="text-red-600 dark:text-red-400 mt-2">Try increasing the number of allowed transfers or selecting a different nearby stop.</p>
+                    </div>
+                `;
+            } else {
+                const routesHtml = routes.map((route, index) => `
+                    <div class="bg-gray-50 dark:bg-[#3a3a3a] border border-gray-200 dark:border-gray-600 rounded-lg mb-4 overflow-hidden">
+                        <div class="bg-[#f48733] text-white p-4 flex justify-between items-center">
+                            <div>
+                                <strong>Route Option ${index + 1}</strong>
+                                <span class="ml-2 bg-white/20 px-2 py-1 rounded-full text-xs">
+                                    ${route.transfers === 0 ? 'Direct Route' : `${route.transfers} Transfer${route.transfers > 1 ? 's' : ''}`}
+                                </span>
+                            </div>
+                            <div class="text-sm">
+                                Total: ${route.totalTime} min
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            ${route.legs.map((leg, legIndex) => `
+                                <div class="flex items-center bg-white dark:bg-gray-700 rounded-lg p-4 mb-3">
+                                    <div class="bg-[#f48733] text-white px-3 py-1 rounded-full font-bold mr-4 min-w-[60px] text-center text-sm">
+                                        ${leg.routeNumber}
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-semibold text-[#181411] dark:text-white">
+                                            ${leg.routeName}
+                                        </div>
+                                        ${leg.departureTime && leg.departureTime !== 'N/A' ? `
+                                            <div class="text-sm text-green-600 dark:text-green-400 mt-1">
+                                                Departure: ${leg.departureTime} • Arrival: ${leg.arrivalTime || 'N/A'}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                ${legIndex < route.legs.length - 1 ? `
+                                    <div class="text-center py-2">
+                                        <div class="bg-orange-100 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3 mx-4">
+                                            <div class="text-orange-600 dark:text-orange-400 font-semibold text-sm">
+                                                Transfer Required
+                                            </div>
+                                            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                Walk to the next bus stop for Route ${route.legs[legIndex + 1].routeNumber}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+                
+                routesListDiv.innerHTML = routesHtml;
+            }
+            
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('results').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+
+        // Utility functions
+        function showLoading(message) {
+            document.getElementById('loadingText').textContent = message;
+            document.getElementById('loading').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showError(message) {
+            showMessage(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showMessage(message, 'success');
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messages-container');
+            const messageDiv = document.createElement('div');
+            
+            const bgColor = type === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-800 dark:text-red-300' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-800 dark:text-green-300';
+            
+            messageDiv.className = `${bgColor} border rounded-lg p-4 mb-4`;
+            messageDiv.setAttribute('role', 'alert');
+            messageDiv.innerHTML = `<strong>${type === 'error' ? 'Error' : 'Success'}:</strong> ${message}`;
+            
+            container.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), type === 'error' ? 5000 : 3000);
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            
+            document.getElementById('locationBtn').addEventListener('click', getCurrentLocation);
+            document.getElementById('fromStopSelect').addEventListener('change', checkSearchReady);
+            document.getElementById('toLocation').addEventListener('change', checkSearchReady);
+            document.getElementById('searchBtn').addEventListener('click', findRoutes);
+        });
+
+        // Theme toggle functionality (same as landing page)
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const themeText = document.getElementById('theme-text');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Light';
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Dark';
+            }
+        }
+
+        const isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDarkMode) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+        
+        updateThemeIcon(isDarkMode);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyDark = html.classList.contains('dark');
+            
+            if (isCurrentlyDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+        });
+    </script>
+</body>
+</html>

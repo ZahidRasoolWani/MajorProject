@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&amp;family=Inter%3Awght%40400%3B500%3B700%3B900&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <title>Bengaluru Traffic Insights - Bike Taxi Ban Analysis</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    
+    <style>
+        body { 
+            font-family: 'Inter', "Noto Sans", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex: 1;
+        }
+        .chart-container { position: relative; min-height: 400px; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .loading-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+    <!-- Header -->
+    <header class="flex items-center justify-between whitespace-nowrap border-b border-gray-300 dark:border-gray-600 px-10 py-3 shadow-sm bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="flex items-center gap-4 text-[#181411] dark:text-white">
+            <div class="size-4">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor"></path>
+                </svg>
+            </div>
+            <h2 class="text-[#181411] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Bengaluru Traffic Insights</h2>
+        </div>
+        <div class="flex flex-1 justify-end gap-8">
+            <div class="flex items-center gap-9">
+                <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="../index.html">Home</a>
+                <a class="text-[#181411] dark:text-white text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="heatmap.html">Real-Time Traffic</a>
+                <a class="text-[#f48733] dark:text-[#f48733] text-sm font-medium leading-normal hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-2 rounded-md transition-colors" href="#">Bike Taxi Ban Analysis</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <div x-data="{ open: false }" class="relative">
+                    <button @click="open = !open" class="flex items-center justify-center min-w-[84px] h-10 px-4 rounded-full bg-[#f48733] text-[#181411] text-sm font-bold tracking-[0.015em] transition-all duration-200 hover:bg-[#e37527] hover:shadow-md">
+                        Explore
+                        <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-transition class="absolute left-0 mt-2 w-56 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50">
+                        <a href="../src/bmtc2.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">BMTC Bus</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-[#f48733] font-semibold hover:bg-gray-100 dark:hover:bg-gray-700">Bike Taxi Ban Analysis</a>
+                        <a href="vehicle2.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">Vehicle Analysis</a>
+                        <a href="accident.html" class="block px-4 py-2 text-sm text-[#181411] dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">Accident Analysis</a>
+                    </div>
+                </div>
+                <button id="theme-toggle" class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-[#f5f2f0] dark:bg-[#2a2a2a] text-[#181411] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5 transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                        <path id="sun-icon" d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm68,88a60,60,0,1,1-60-60A60.07,60.07,0,0,1,188,128Zm-16,0a44,44,0,1,0-44,44A44.05,44.05,0,0,0,172,128ZM58.34,69.66A8,8,0,0,1,69.66,58.34l16,16a8,8,0,0,1-11.32,11.32Zm0,116.68-16-16a8,8,0,0,1,11.32-11.32l16,16a8,8,0,0,1-11.32,11.32ZM192,72a8,8,0,0,1,5.66-2.34l16-16a8,8,0,0,1,11.32,11.32l-16,16A8,8,0,0,1,192,72Zm5.66,114.34a8,8,0,0,1-11.32,11.32l-16-16a8,8,0,0,1,11.32-11.32ZM48,128a8,8,0,0,1-8-8H16a8,8,0,0,1,0-16H40A8,8,0,0,1,48,128Zm80,80a8,8,0,0,1-8,8H104a8,8,0,0,1,0-16h16A8,8,0,0,1,128,208Zm112-88a8,8,0,0,1-8,8H216a8,8,0,0,1,0-16h16A8,8,0,0,1,240,120Z"></path>
+                        <path id="moon-icon" class="hidden" d="M233.54,142.23a8,8,0,0,0-8-2A88.08,88.08,0,0,1,116.18,30.78a8,8,0,0,0-10.51-9.67A104.84,104.84,0,0,0,52.74,88A104,104,0,0,0,224,160a104.84,104.84,0,0,0,10.67-52.93A8,8,0,0,0,233.54,142.23ZM208,144a88,88,0,0,1-71.22,15.82q-2.85-.74-5.64-1.64A104.05,104.05,0,0,0,152,88a104.05,104.05,0,0,0-70.18-20.86q-.9-2.79-1.64-5.64A88,88,0,0,1,208,144Z"></path>
+                    </svg>
+                    <span id="theme-text">Theme</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="px-0 w-full flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="layout-content-container flex flex-col w-full flex-1">
+            <!-- Hero Section -->
+            <div class="@container">
+                <div class="@[480px]:p-4">
+                    <div class="flex min-h-[320px] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-start justify-end px-4 pb-10 @[480px]:px-10" 
+                         style='background-image: linear-gradient(rgba(244, 135, 51, 0.1) 0%, rgba(244, 135, 51, 0.6) 100%), url("/src/bike\ ban.png");'>
+                        <div class="flex flex-col gap-2 text-left">
+                            <h1 class="text-white text-4xl font-black leading-tight tracking-[-0.033em] @[480px]:text-5xl">
+                                 Bike Taxi Ban Impact Analysis
+                            </h1>
+                            <h2 class="text-white text-sm font-normal leading-normal @[480px]:text-base">
+                                Interactive dashboard analyzing how the bike taxi ban has reshaped traffic patterns across Bengaluru
+                            </h2>
+                        </div>
+                        <button onclick="scrollToAnalytics()" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#f48733] text-[#181411] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base hover:bg-[#e37527] transition-colors">
+                            <span class="truncate">View Analysis</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Status Section -->
+            <section class="container mx-auto px-6 py-8" id="dataStatus">
+                <!-- Loading State -->
+                <div id="loadingSection" class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#f48733] loading-spinner"></div>
+                    <p class="mt-4 text-[#181411] dark:text-white font-medium">Loading traffic data...</p>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Searching for bikebanfiltereddata.csv</p>
+                    <div class="mt-4 text-xs text-gray-500 dark:text-gray-500">
+                        <p>📁 Searching for: bikebanfiltereddata.csv</p>
+                        <p class="mt-1">🔍 Checking multiple locations...</p>
+                        <div class="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                            <div class="bg-[#f48733] h-1 rounded-full animate-pulse" style="width: 60%"></div>
+                        </div>
+                        <p class="mt-2 text-blue-600 dark:text-blue-400">📋 Real CSV data prioritized over sample data</p>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorSection" class="hidden">
+                    <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-6 text-center transition-colors duration-300">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+                            <svg class="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">CSV File Required</h3>
+                        <p class="text-red-600 dark:text-red-400 mb-6" id="errorText">Could not find bikebanfiltereddata.csv file.</p>
+                        <div class="space-y-6">
+                            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                                <h4 class="font-semibold text-blue-800 dark:text-blue-300 mb-2">📁 Expected File Locations:</h4>
+                                <ul class="text-sm text-blue-600 dark:text-blue-400 space-y-1 text-left">
+                                    <li>• <code>bikebanfiltereddata.csv</code> (same directory)</li>
+                                    <li>• <code>src/bikebanfiltereddata.csv</code></li>
+                                    <li>• <code>data/bikebanfiltereddata.csv</code></li>
+                                    <li>• <code>assets/bikebanfiltereddata.csv</code></li>
+                                </ul>
+                            </div>
+                            <div class="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                                <h4 class="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">📋 Required CSV Format:</h4>
+                                <div class="text-sm text-yellow-600 dark:text-yellow-400 text-left">
+                                    <p class="mb-2">Your CSV should contain these columns:</p>
+                                    <code class="text-xs bg-yellow-100 dark:bg-yellow-900/50 p-2 rounded block">
+                                        timestamp,congestionPercentage,areaName,currentSpeed,hour,is_morning_peak,is_evening_peak,is_post_ban
+                                    </code>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Or upload your CSV file directly:</p>
+                                <input type="file" id="csvFile" accept=".csv" class="block w-full max-w-sm mx-auto text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#f48733] file:text-white hover:file:bg-[#e37527] transition-colors">
+                            </div>
+                            <button onclick="generateSampleDataFallback()" class="mt-4 px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                🔬 Generate Sample Data for Testing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" class="hidden">
+                <!-- Ban Implementation Notice -->
+                <section class="container mx-auto px-6 py-4">
+                    <div class="bg-gradient-to-r from-[#f48733]/10 to-[#e37527]/10 border border-[#f48733]/20 rounded-xl p-6 text-center">
+                        <div class="flex items-center justify-center gap-3 mb-2">
+                            <div class="w-8 h-8 bg-[#f48733] rounded-full flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-[#181411] dark:text-white">Bike Taxi Ban Implementation</h3>
+                        </div>
+                        <p class="text-[#f48733] font-semibold text-lg">Effective Date: June 16, 2025</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Analyzing traffic impact before and after the ban</p>
+                    </div>
+                </section>
+
+                <!-- Controls -->
+                <section class="container mx-auto px-6 py-4">
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300" id="analytics">
+                        <h3 class="text-lg font-bold text-[#181411] dark:text-white mb-4">📊 Interactive Controls</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2">Date Range</label>
+                                <select id="dateRange" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f48733] bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                                    <option value="all">All Data</option>
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="14">Last 14 Days</option>
+                                    <option value="30">Last 30 Days</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2">Area Filter</label>
+                                <select id="areaFilter" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f48733] bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                                    <option value="all">All Areas</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[#181411] dark:text-white mb-2">Time Period</label>
+                                <select id="timePeriod" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#f48733] bg-white dark:bg-[#1a1a1a] text-[#181411] dark:text-white transition-colors duration-300">
+                                    <option value="all">All Hours</option>
+                                    <option value="morning">Morning Peak (8-10 AM)</option>
+                                    <option value="evening">Evening Peak (5-9 PM)</option>
+                                    <option value="off-peak">Off-Peak Hours</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Stats Grid -->
+                <section class="container mx-auto px-6 py-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="statsContainer">
+                        <!-- Stats will be populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- Charts Section -->
+                <section class="container mx-auto px-6 py-4 space-y-8">
+                    <!-- Daily Trend Chart -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 bg-[#f48733] rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-[#181411] dark:text-white">Daily Average Congestion: Pre-Ban vs. Post-Ban</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Track congestion changes over time with interactive timeline</p>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <div id="dailyChart"></div>
+                        </div>
+                    </div>
+
+                    <!-- Peak Hours Analysis -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                            <div class="flex items-center gap-3 mb-6">
+                                <div class="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-[#181411] dark:text-white">Morning Peak Analysis</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">8:00 AM - 10:00 AM traffic patterns</p>
+                                </div>
+                            </div>
+                            <div class="chart-container" style="min-height: 350px;">
+                                <div id="morningChart"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                            <div class="flex items-center gap-3 mb-6">
+                                <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-[#181411] dark:text-white">Evening Peak Analysis</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">5:00 PM - 9:00 PM traffic patterns</p>
+                                </div>
+                            </div>
+                            <div class="chart-container" style="min-height: 350px;">
+                                <div id="eveningChart"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Area Impact Chart -->
+                    <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-[#181411] dark:text-white">Area-wise Congestion Impact</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Top areas affected by the bike taxi ban</p>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <div id="areaChart"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="flex justify-center bg-white dark:bg-[#1a1a1a] transition-colors duration-300">
+        <div class="flex w-full flex-1 flex-col">
+            <footer class="flex flex-col gap-6 px-0 py-10 text-center @container">
+                <div class="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
+                    <a class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal min-w-40 transition-colors duration-300" href="#">Bengaluru Traffic Insights</a>
+                </div>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <a href="https://github.com/ZahidRasoolWani/MajorProject" target="_blank" class="hover:opacity-75 transition-opacity">
+                        <div class="text-[#8a7260] dark:text-gray-400 transition-colors duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                                <path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"></path>
+                            </svg>
+                        </div>
+                    </a>
+                </div>
+                <p class="text-[#8a7260] dark:text-gray-400 text-base font-normal leading-normal transition-colors duration-300">This project is proudly open-source. Contributions welcome!</p>
+            </footer>
+        </div>
+    </footer>
+
+    <script>
+        // Global state
+        const state = {
+            rawData: null,
+            filteredData: null,
+            filters: {
+                dateRange: 'all',
+                area: 'all',
+                timePeriod: 'all'
+            }
+        };
+
+        const BAN_DATE = new Date('2025-06-16');
+
+        // Theme functionality
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const themeIcon = document.getElementById('theme-icon');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const themeText = document.getElementById('theme-text');
+
+        function updateThemeIcon(isDark) {
+            if (isDark) {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                themeText.textContent = 'Light';
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                themeText.textContent = 'Dark';
+            }
+        }
+
+        const isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDarkMode) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+        
+        updateThemeIcon(isDarkMode);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyDark = html.classList.contains('dark');
+            
+            if (isCurrentlyDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeIcon(false);
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeIcon(true);
+            }
+            
+            if (!document.getElementById('dashboardSection').classList.contains('hidden')) {
+                setTimeout(updateChartsForTheme, 100);
+            }
+        });
+
+        // Utility functions
+        function getTextColor() {
+            return html.classList.contains('dark') ? '#ffffff' : '#181411';
+        }
+
+        function getGridColor() {
+            return html.classList.contains('dark') ? '#374151' : '#e5e7eb';
+        }
+
+        function getBgColor() {
+            return html.classList.contains('dark') ? '#1a1a1a' : '#ffffff';
+        }
+
+        function scrollToAnalytics() {
+            document.getElementById('analytics').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Dashboard initializing...');
+            setupEventListeners();
+            loadCSVData();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('csvFile').addEventListener('change', handleFileUpload);
+            document.getElementById('dateRange').addEventListener('change', updateFilters);
+            document.getElementById('areaFilter').addEventListener('change', updateFilters);
+            document.getElementById('timePeriod').addEventListener('change', updateFilters);
+        }
+
+        // UI State Management
+        function showSection(sectionId) {
+            const sections = ['loadingSection', 'errorSection', 'dashboardSection'];
+            sections.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    if (id === sectionId) {
+                        element.classList.remove('hidden');
+                        if (id === 'dashboardSection') {
+                            element.classList.add('fade-in');
+                        }
+                    } else {
+                        element.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function showError(message) {
+            console.error('❌ Error:', message);
+            document.getElementById('errorText').textContent = message;
+            showSection('errorSection');
+        }
+
+        function showLoading() {
+            console.log('⏳ Loading...');
+            showSection('loadingSection');
+        }
+
+        function showDashboard() {
+            console.log('✅ Dashboard ready');
+            showSection('dashboardSection');
+        }
+
+        // Data Loading - prioritize CSV file
+        async function loadCSVData() {
+            showLoading();
+            
+            const possiblePaths = [
+                'bikebanfiltereddata.csv',
+                './bikebanfiltereddata.csv',
+                '../bikebanfiltereddata.csv',
+                'src/bikebanfiltereddata.csv',
+                './src/bikebanfiltereddata.csv',
+                '../src/bikebanfiltereddata.csv',
+                'data/bikebanfiltereddata.csv',
+                './data/bikebanfiltereddata.csv',
+                '../data/bikebanfiltereddata.csv',
+                'assets/bikebanfiltereddata.csv',
+                './assets/bikebanfiltereddata.csv'
+            ];
+            
+            console.log('🔍 Starting CSV load process - prioritizing real data...');
+            
+            for (let i = 0; i < possiblePaths.length; i++) {
+                const path = possiblePaths[i];
+                try {
+                    console.log(`📁 [${i+1}/${possiblePaths.length}] Searching: ${path}`);
+                    
+                    // Increase timeout for better CSV detection
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    
+                    const response = await fetch(path, { 
+                        signal: controller.signal,
+                        method: 'GET',
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        }
+                    });
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const csvText = await response.text();
+                        console.log(`📄 File found at ${path}:`, {
+                            size: csvText.length,
+                            firstLine: csvText.split('\n')[0],
+                            hasRequiredColumns: csvText.includes('congestionPercentage') || csvText.includes('timestamp')
+                        });
+                        
+                        if (csvText.length > 50 && (csvText.includes('congestionPercentage') || csvText.includes('timestamp') || csvText.includes('areaName'))) {
+                            console.log('✅ CSV DATA LOADED SUCCESSFULLY!', {
+                                path: path,
+                                size: csvText.length,
+                                lines: csvText.split('\n').length,
+                                preview: csvText.substring(0, 300) + '...'
+                            });
+                            parseCSVData(csvText);
+                            return;
+                        } else {
+                            console.warn(`⚠️ File found but invalid format: ${csvText.length} bytes`);
+                        }
+                    } else {
+                        console.warn(`⚠️ HTTP ${response.status}: ${response.statusText} for ${path}`);
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn(`❌ Error loading ${path}:`, error.message);
+                    }
+                }
+                
+                // Brief delay between attempts
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            console.error('❌ CSV FILE NOT FOUND IN ANY LOCATION!');
+            console.log('📋 Checked paths:', possiblePaths);
+            
+            // Show error instead of fallback to sample data
+            showError(`CSV file 'bikebanfiltereddata.csv' not found. Please ensure the file is in the correct location or upload it using the file input below.`);
+        }
+
+        // Generate sample data only when explicitly requested
+        function generateSampleDataFallback() {
+            console.log('🔬 Generating sample data for testing purposes...');
+            showLoading();
+            
+            setTimeout(() => {
+                const sampleData = generateSampleData();
+                console.log('✅ Sample data generated for demonstration');
+                processData(sampleData);
+            }, 1000);
+        }
+
+        function generateSampleData() {
+            const areas = [
+                'Koramangala', 'Indiranagar', 'Whitefield', 'Electronic City', 'Marathahalli', 
+                'BTM Layout', 'Jayanagar', 'Rajajinagar', 'HSR Layout', 'Banashankari',
+                'Yelahanka', 'Hebbal', 'Silk Board', 'KR Puram', 'Bommanahalli',
+                'Malleshwaram', 'Vijayanagar', 'Basavanagudi', 'Shivajinagar', 'MG Road'
+            ];
+            const data = [];
+            
+            // Generate realistic data for 30 days before and 15 days after ban
+            for (let dayOffset = -30; dayOffset <= 15; dayOffset++) {
+                const date = new Date(BAN_DATE);
+                date.setDate(date.getDate() + dayOffset);
+                
+                areas.forEach(area => {
+                    // Generate data every hour for realistic patterns
+                    for (let hour = 0; hour < 24; hour++) {
+                        const timestamp = new Date(date);
+                        timestamp.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+                        
+                        const isPostBan = timestamp >= BAN_DATE ? 1 : 0;
+                        
+                        // Base congestion varies by area and time
+                        const areaIndex = areas.indexOf(area);
+                        let baseCongestion = 20 + (areaIndex * 1.5) + Math.random() * 15;
+                        
+                        // Time-based effects
+                        let timeMultiplier = 1;
+                        
+                        // Morning peak (7-10 AM)
+                        if (hour >= 7 && hour <= 10) {
+                            if (['Whitefield', 'Electronic City', 'Marathahalli'].includes(area)) {
+                                timeMultiplier = 1.8; // Tech areas hit harder
+                            } else {
+                                timeMultiplier = 1.4;
+                            }
+                        }
+                        // Evening peak (5-9 PM)
+                        else if (hour >= 17 && hour <= 21) {
+                            timeMultiplier = 1.6;
+                        }
+                        // Late night (11 PM - 5 AM)
+                        else if (hour >= 23 || hour <= 5) {
+                            timeMultiplier = 0.3;
+                        }
+                        
+                        // Weekend effect
+                        const dayOfWeek = timestamp.getDay();
+                        if (dayOfWeek === 0 || dayOfWeek === 6) {
+                            timeMultiplier *= 0.7;
+                        }
+                        
+                        // Post-ban effect: significant increase
+                        const banEffect = isPostBan ? 1.3 + Math.random() * 0.4 : 1;
+                        
+                        const congestion = Math.min(95, 
+                            baseCongestion * timeMultiplier * banEffect + Math.random() * 8
+                        );
+                        
+                        // Speed inversely related to congestion
+                        const baseSpeed = ['MG Road', 'Shivajinagar'].includes(area) ? 25 : 45;
+                        const speed = Math.max(5, baseSpeed - (congestion * 0.4) + Math.random() * 8);
+                        
+                        data.push({
+                            timestamp: timestamp.toISOString(),
+                            congestionPercentage: Math.round(congestion * 10) / 10,
+                            currentSpeed: Math.round(speed),
+                            areaName: area,
+                            hour: hour,
+                            is_morning_peak: (hour >= 8 && hour <= 10) ? 1 : 0,
+                            is_evening_peak: (hour >= 17 && hour <= 21) ? 1 : 0,
+                            is_post_ban: isPostBan
+                        });
+                    }
+                });
+            }
+            
+            console.log(`✅ Sample data generated: ${data.length} rows, ${areas.length} areas, 46 days`);
+            return data;
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.endsWith('.csv')) {
+                showError('Please select a CSV file.');
+                return;
+            }
+            
+            console.log('📤 Processing uploaded file:', file.name);
+            showLoading();
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseCSVData(e.target.result);
+            };
+            reader.onerror = function() {
+                showError('Failed to read the uploaded file.');
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVData(csvText) {
+            try {
+                console.log('🔍 Parsing CSV data...');
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    transformHeader: header => header.trim(),
+                    complete: function(results) {
+                        if (results.errors.length > 0) {
+                            console.warn('⚠️ Parse warnings:', results.errors);
+                        }
+                        
+                        console.log('✅ CSV parsed successfully');
+                        console.log('📊 Rows:', results.data.length);
+                        console.log('📋 Columns:', results.meta.fields);
+                        console.log('📝 Sample row:', results.data[0]);
+                        
+                        processData(results.data);
+                    },
+                    error: function(error) {
+                        showError(`CSV parsing failed: ${error.message}`);
+                    }
+                });
+                
+            } catch (error) {
+                showError(`Data processing error: ${error.message}`);
+            }
+        }
+
+        function processData(rawData) {
+            try {
+                console.log('⚙️ Processing raw data...');
+                
+                const processedData = rawData
+                    .map((row, index) => {
+                        try {
+                            let timestamp = new Date(row.timestamp);
+                            if (isNaN(timestamp.getTime())) {
+                                timestamp = new Date(row.timestamp?.replace(' ', 'T'));
+                            }
+                            
+                            if (isNaN(timestamp.getTime())) {
+                                console.warn(`⚠️ Invalid timestamp at row ${index}:`, row.timestamp);
+                                return null;
+                            }
+                            
+                            return {
+                                timestamp,
+                                date: timestamp.toDateString(),
+                                congestionPercentage: parseFloat(row.congestionPercentage || 0),
+                                currentSpeed: parseFloat(row.currentSpeed || 0),
+                                areaName: String(row.areaName || 'Unknown').trim(),
+                                hour: parseInt(row.hour || timestamp.getHours()),
+                                is_morning_peak: parseInt(row.is_morning_peak || 0),
+                                is_evening_peak: parseInt(row.is_evening_peak || 0),
+                                is_post_ban: parseInt(row.is_post_ban || (timestamp >= BAN_DATE ? 1 : 0)),
+                                phase: (parseInt(row.is_post_ban || (timestamp >= BAN_DATE ? 1 : 0)) === 1) ? 'Post-Ban' : 'Pre-Ban'
+                            };
+                        } catch (err) {
+                            console.warn(`⚠️ Error processing row ${index}:`, err);
+                            return null;
+                        }
+                    })
+                    .filter(row => row !== null);
+                
+                if (processedData.length === 0) {
+                    showError('No valid data rows found in CSV file.');
+                    return;
+                }
+                
+                console.log('✅ Data processing complete');
+                console.log('📊 Valid rows:', processedData.length);
+                
+                const preBanCount = processedData.filter(d => d.phase === 'Pre-Ban').length;
+                const postBanCount = processedData.filter(d => d.phase === 'Post-Ban').length;
+                const areas = [...new Set(processedData.map(d => d.areaName))];
+                
+                console.log(`📈 Data distribution: Pre-Ban: ${preBanCount}, Post-Ban: ${postBanCount}`);
+                console.log(`🗺️ Unique areas: ${areas.length}`);
+                
+                state.rawData = processedData;
+                state.filteredData = processedData;
+                
+                populateAreaFilter(areas);
+                updateDashboard();
+                showDashboard();
+                
+            } catch (error) {
+                showError(`Data processing failed: ${error.message}`);
+            }
+        }
+
+        function populateAreaFilter(areas) {
+            const areaFilter = document.getElementById('areaFilter');
+            areaFilter.innerHTML = '<option value="all">All Areas</option>';
+            
+            areas.sort().forEach(area => {
+                const option = document.createElement('option');
+                option.value = area;
+                option.textContent = area;
+                areaFilter.appendChild(option);
+            });
+        }
+
+        // Filtering
+        function updateFilters() {
+            state.filters.dateRange = document.getElementById('dateRange').value;
+            state.filters.area = document.getElementById('areaFilter').value;
+            state.filters.timePeriod = document.getElementById('timePeriod').value;
+            
+            console.log('🔍 Filters updated:', state.filters);
+            
+            applyFilters();
+            updateDashboard();
+        }
+
+        function applyFilters() {
+            let filtered = [...state.rawData];
+            
+            if (state.filters.dateRange !== 'all') {
+                const days = parseInt(state.filters.dateRange);
+                const cutoff = new Date();
+                cutoff.setDate(cutoff.getDate() - days);
+                filtered = filtered.filter(d => d.timestamp >= cutoff);
+            }
+            
+            if (state.filters.area !== 'all') {
+                filtered = filtered.filter(d => d.areaName === state.filters.area);
+            }
+            
+            if (state.filters.timePeriod !== 'all') {
+                if (state.filters.timePeriod === 'morning') {
+                    filtered = filtered.filter(d => d.is_morning_peak === 1);
+                } else if (state.filters.timePeriod === 'evening') {
+                    filtered = filtered.filter(d => d.is_evening_peak === 1);
+                } else if (state.filters.timePeriod === 'off-peak') {
+                    filtered = filtered.filter(d => d.is_morning_peak === 0 && d.is_evening_peak === 0);
+                }
+            }
+            
+            state.filteredData = filtered;
+            console.log(`🔍 Filtered data: ${filtered.length} rows`);
+        }
+
+        // Dashboard Updates
+        function updateDashboard() {
+            console.log('📊 Updating dashboard...');
+            
+            try {
+                updateStats();
+                updateDailyChart();
+                updatePeakCharts();
+                updateAreaChart();
+                console.log('✅ Dashboard updated successfully');
+            } catch (error) {
+                console.error('❌ Dashboard update failed:', error);
+                showError(`Dashboard update failed: ${error.message}`);
+            }
+        }
+
+        function updateStats() {
+            const preBanData = state.filteredData.filter(d => d.phase === 'Pre-Ban');
+            const postBanData = state.filteredData.filter(d => d.phase === 'Post-Ban');
+            
+            const preAvg = preBanData.length > 0 ? 
+                preBanData.reduce((sum, d) => sum + d.congestionPercentage, 0) / preBanData.length : 0;
+            const postAvg = postBanData.length > 0 ? 
+                postBanData.reduce((sum, d) => sum + d.congestionPercentage, 0) / postBanData.length : 0;
+            
+            const surgePct = preAvg > 0 ? ((postAvg - preAvg) / preAvg) * 100 : 0;
+            const uniqueAreas = [...new Set(state.filteredData.map(d => d.areaName))].length;
+            const maxCongestion = Math.max(...state.filteredData.map(d => d.congestionPercentage));
+            
+            const preSpeed = preBanData.length > 0 ? 
+                preBanData.reduce((sum, d) => sum + d.currentSpeed, 0) / preBanData.length : 0;
+            const postSpeed = postBanData.length > 0 ? 
+                postBanData.reduce((sum, d) => sum + d.currentSpeed, 0) / postBanData.length : 0;
+            const speedChange = preSpeed > 0 ? ((postSpeed - preSpeed) / preSpeed) * 100 : 0;
+
+            const statsHTML = `
+                <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Congestion Surge</p>
+                            <p class="text-2xl font-bold ${surgePct > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'} pulse-animation">${surgePct > 0 ? '+' : ''}${surgePct.toFixed(1)}%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Since ban implementation</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Areas Monitored</p>
+                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${uniqueAreas}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Across Bengaluru</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Speed Change</p>
+                            <p class="text-2xl font-bold ${speedChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">${speedChange > 0 ? '+' : ''}${speedChange.toFixed(1)}%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${preSpeed.toFixed(1)} → ${postSpeed.toFixed(1)} km/h</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#2a2a2a] rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-[#f48733]/20 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-[#f48733]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">Peak Congestion</p>
+                            <p class="text-2xl font-bold text-[#f48733]">${maxCongestion.toFixed(1)}%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Highest recorded level</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('statsContainer').innerHTML = statsHTML;
+        }
+
+        function updateDailyChart() {
+            const dailyData = {};
+            
+            state.filteredData.forEach(d => {
+                const key = `${d.date}_${d.phase}`;
+                if (!dailyData[key]) {
+                    dailyData[key] = {
+                        date: d.date,
+                        phase: d.phase,
+                        congestion: [],
+                        timestamp: d.timestamp
+                    };
+                }
+                dailyData[key].congestion.push(d.congestionPercentage);
+            });
+
+            const dailyAvg = Object.values(dailyData).map(d => ({
+                date: d.timestamp,
+                phase: d.phase,
+                avgCongestion: d.congestion.reduce((sum, val) => sum + val, 0) / d.congestion.length
+            }));
+
+            dailyAvg.sort((a, b) => a.date - b.date);
+
+            const preBanTrace = {
+                x: dailyAvg.filter(d => d.phase === 'Pre-Ban').map(d => d.date),
+                y: dailyAvg.filter(d => d.phase === 'Pre-Ban').map(d => d.avgCongestion),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Pre-Ban',
+                line: { color: '#10b981', width: 3 },
+                marker: { size: 6, color: '#10b981' },
+                hovertemplate: '<b>Pre-Ban</b><br>Date: %{x}<br>Congestion: %{y:.1f}%<extra></extra>'
+            };
+
+            const postBanTrace = {
+                x: dailyAvg.filter(d => d.phase === 'Post-Ban').map(d => d.date),
+                y: dailyAvg.filter(d => d.phase === 'Post-Ban').map(d => d.avgCongestion),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Post-Ban',
+                line: { color: '#f48733', width: 3 },
+                marker: { size: 6, color: '#f48733' },
+                hovertemplate: '<b>Post-Ban</b><br>Date: %{x}<br>Congestion: %{y:.1f}%<extra></extra>'
+            };
+
+            const layout = {
+                height: 450,
+                font: { family: 'Inter, sans-serif', color: getTextColor() },
+                plot_bgcolor: getBgColor(),
+                paper_bgcolor: getBgColor(),
+                hovermode: 'x unified',
+                showlegend: true,
+                legend: {
+                    orientation: 'h',
+                    y: -0.2,
+                    x: 0.5,
+                    xanchor: 'center',
+                    font: { color: getTextColor() }
+                },
+                xaxis: {
+                    title: 'Date',
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                },
+                yaxis: {
+                    title: 'Average Congestion (%)',
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                },
+                shapes: [{
+                    type: 'line',
+                    x0: BAN_DATE,
+                    x1: BAN_DATE,
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: { color: '#dc3545', width: 2, dash: 'dash' }
+                }],
+                annotations: [{
+                    x: BAN_DATE,
+                    y: 1.1,
+                    yref: 'paper',
+                    text: '<b>🚫 Ban Implemented</b>',
+                    showarrow: true,
+                    arrowhead: 2,
+                    arrowcolor: '#dc3545',
+                    font: { color: '#dc3545', size: 12 },
+                    bgcolor: 'rgba(220, 53, 69, 0.1)',
+                    bordercolor: '#dc3545',
+                    borderwidth: 1
+                }]
+            };
+
+            Plotly.newPlot('dailyChart', [preBanTrace, postBanTrace], layout, {responsive: true});
+        }
+
+        function updatePeakCharts() {
+            updatePeakChart('morning', 'morningChart', d => d.is_morning_peak === 1);
+            updatePeakChart('evening', 'eveningChart', d => d.is_evening_peak === 1);
+        }
+
+        function updatePeakChart(period, chartId, filter) {
+            const peakData = state.filteredData.filter(filter);
+            const grouped = {};
+            
+            peakData.forEach(d => {
+                const key = `${d.hour}_${d.phase}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        hour: d.hour,
+                        phase: d.phase,
+                        congestion: []
+                    };
+                }
+                grouped[key].congestion.push(d.congestionPercentage);
+            });
+
+            const hourlyAvg = Object.values(grouped).map(d => ({
+                hour: d.hour,
+                phase: d.phase,
+                avgCongestion: d.congestion.reduce((sum, val) => sum + val, 0) / d.congestion.length
+            }));
+
+            const preBan = hourlyAvg.filter(d => d.phase === 'Pre-Ban');
+            const postBan = hourlyAvg.filter(d => d.phase === 'Post-Ban');
+
+            const traces = [
+                {
+                    x: preBan.map(d => d.hour + ':00'),
+                    y: preBan.map(d => d.avgCongestion),
+                    type: 'bar',
+                    name: 'Pre-Ban',
+                    marker: { color: '#10b981' },
+                    hovertemplate: '<b>Pre-Ban</b><br>Hour: %{x}<br>Congestion: %{y:.1f}%<extra></extra>'
+                },
+                {
+                    x: postBan.map(d => d.hour + ':00'),
+                    y: postBan.map(d => d.avgCongestion),
+                    type: 'bar',
+                    name: 'Post-Ban',
+                    marker: { color: '#f48733' },
+                    hovertemplate: '<b>Post-Ban</b><br>Hour: %{x}<br>Congestion: %{y:.1f}%<extra></extra>'
+                }
+            ];
+
+            const layout = {
+                barmode: 'group',
+                height: 350,
+                font: { family: 'Inter, sans-serif', color: getTextColor() },
+                plot_bgcolor: getBgColor(),
+                paper_bgcolor: getBgColor(),
+                showlegend: false,
+                xaxis: {
+                    title: 'Hour of Day',
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                },
+                yaxis: {
+                    title: 'Average Congestion (%)',
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                }
+            };
+
+            Plotly.newPlot(chartId, traces, layout, {responsive: true});
+        }
+
+        function updateAreaChart() {
+            const areaData = {};
+            
+            state.filteredData.forEach(d => {
+                const key = `${d.areaName}_${d.phase}`;
+                if (!areaData[key]) {
+                    areaData[key] = {
+                        area: d.areaName,
+                        phase: d.phase,
+                        congestion: []
+                    };
+                }
+                areaData[key].congestion.push(d.congestionPercentage);
+            });
+
+            const areaAvg = {};
+            Object.values(areaData).forEach(d => {
+                const avg = d.congestion.reduce((sum, val) => sum + val, 0) / d.congestion.length;
+                if (!areaAvg[d.area]) {
+                    areaAvg[d.area] = {};
+                }
+                areaAvg[d.area][d.phase] = avg;
+            });
+
+            const areaSurge = Object.keys(areaAvg).map(area => {
+                const preBan = areaAvg[area]['Pre-Ban'] || 0;
+                const postBan = areaAvg[area]['Post-Ban'] || 0;
+                const surgePct = preBan > 0 ? ((postBan - preBan) / preBan) * 100 : 0;
+                
+                return {
+                    area: area,
+                    surgePct: surgePct,
+                    preBan: preBan,
+                    postBan: postBan
+                };
+            });
+
+            areaSurge.sort((a, b) => b.surgePct - a.surgePct);
+            const top15 = areaSurge.slice(0, 15);
+
+            const trace = {
+                x: top15.map(d => d.area),
+                y: top15.map(d => d.surgePct),
+                type: 'bar',
+                marker: {
+                    color: top15.map(d => d.surgePct),
+                    colorscale: [
+                        [0, '#10b981'],
+                        [0.5, '#f59e0b'], 
+                        [1, '#f48733']
+                    ],
+                    showscale: false,
+                    line: { color: getBgColor(), width: 1 }
+                },
+                text: top15.map(d => `${d.surgePct.toFixed(1)}%`),
+                textposition: 'outside',
+                textfont: { size: 11, color: getTextColor() },
+                hovertemplate: '<b>%{x}</b><br>Surge: %{y:.1f}%<br>Pre-Ban: %{customdata[0]:.1f}%<br>Post-Ban: %{customdata[1]:.1f}%<extra></extra>',
+                customdata: top15.map(d => [d.preBan, d.postBan])
+            };
+
+            const layout = {
+                height: 450,
+                font: { family: 'Inter, sans-serif', color: getTextColor() },
+                plot_bgcolor: getBgColor(),
+                paper_bgcolor: getBgColor(),
+                xaxis: {
+                    title: 'Area',
+                    tickangle: -45,
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                },
+                yaxis: {
+                    title: 'Congestion Surge (%)',
+                    showgrid: true,
+                    gridcolor: getGridColor(),
+                    color: getTextColor()
+                },
+                margin: { bottom: 120, top: 50 }
+            };
+
+            Plotly.newPlot('areaChart', [trace], layout, {responsive: true});
+        }
+
+        function updateChartsForTheme() {
+            if (state.filteredData) {
+                updateDashboard();
+            }
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!('theme' in localStorage)) {
+                if (e.matches) {
+                    html.classList.add('dark');
+                    updateThemeIcon(true);
+                } else {
+                    html.classList.remove('dark');
+                    updateThemeIcon(false);
+                }
+                setTimeout(updateChartsForTheme, 100);
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', function(e) {
+            console.error(' Unhandled error:', e.error);
+            showError(`Application error: ${e.error?.message || 'Unknown error'}`);
+        });
+
+        // Export for debugging
+        window.dashboardState = state;
+        window.dashboardDebug = {
+            updateDashboard,
+            showError,
+            showDashboard
+        };
+
+        console.log(' Dashboard script loaded successfully');
+    </script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bengaluru Traffic Police - Accident Statistics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .search-focus:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .station-card { transition: all 0.2s ease; }
+        .station-card:hover { transform: translateY(-2px); }
+        .risk-critical { border-left: 4px solid #dc2626; }
+        .risk-high { border-left: 4px solid #ea580c; }
+        .risk-medium { border-left: 4px solid #f59e0b; }
+        .risk-low { border-left: 4px solid #10b981; }
+        .risk-very-low { border-left: 4px solid #22c55e; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Bengaluru Traffic Police</h1>
+                    <p class="text-blue-100 mt-1">Accident Statistics Dashboard</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold">30,610</div>
+                    <div class="text-blue-100">Total Accidents</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Quick Stats -->
+    <section class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                <div class="flex items-center">
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Critical Risk Stations</p>
+                        <p class="text-2xl font-bold text-red-600">3</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                <div class="flex items-center">
+                    <div class="bg-orange-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">High Risk Stations</p>
+                        <p class="text-2xl font-bold text-orange-600">8</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                <div class="flex items-center">
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Total Stations</p>
+                        <p class="text-2xl font-bold text-blue-600">51</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                <div class="flex items-center">
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Avg per Station</p>
+                        <p class="text-2xl font-bold text-green-600">600</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter Controls -->
+        <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200 mb-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search Police Station</label>
+                    <input 
+                        type="text" 
+                        id="searchInput"
+                        placeholder="Type station name (e.g., K.R. Pura, Yelahanka...)"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none search-focus"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Zone</label>
+                    <select id="zoneFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none search-focus">
+                        <option value="all">All Zones</option>
+                        <option value="Traffic North">Traffic North</option>
+                        <option value="Traffic East">Traffic East</option>
+                        <option value="Traffic West">Traffic West</option>
+                        <option value="Traffic South">Traffic South</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sort by</label>
+                    <select id="sortSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none search-focus">
+                        <option value="accidents-desc">Accidents (High to Low)</option>
+                        <option value="accidents-asc">Accidents (Low to High)</option>
+                        <option value="name-asc">Name (A to Z)</option>
+                        <option value="zone-asc">Zone</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Police Stations Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="stationsGrid">
+            <!-- Station cards will be dynamically generated here -->
+        </div>
+
+        <!-- Detailed View Modal -->
+        <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50" onclick="closeModal()">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="p-6">
+                        <div class="flex items-start justify-between mb-4">
+                            <h2 id="modalTitle" class="text-2xl font-bold text-gray-800"></h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="modalContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Police station data
+        const stationsData = [
+            { name: "K.R. Pura", accidents: 1716, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Yelahanka", accidents: 1660, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Kamakshipalya", accidents: 1421, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "Devanahalli Airport", accidents: 1315, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Chikkajala", accidents: 1292, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Electronic City", accidents: 1291, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Whitefield", accidents: 1199, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Kengeri", accidents: 1195, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "K.S. Layout", accidents: 1165, zone: "Traffic West", subdivision: "South Sub Division" },
+            { name: "Byatarayanapura", accidents: 1040, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Hebbal", accidents: 1008, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Yeshwanthpura", accidents: 799, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Banaswadi", accidents: 761, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Hulimavu", accidents: 750, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Jalahalli", accidents: 732, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Vijayanagara", accidents: 693, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "HAL Old Airport", accidents: 630, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Banashankari", accidents: 627, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Rajajinagar", accidents: 592, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Jayanagara", accidents: 576, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Jeevanbheemanagar", accidents: 567, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Mico Layout", accidents: 555, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "HSR Layout", accidents: 552, zone: "Traffic East", subdivision: "HSR Layout Sub Division" },
+            { name: "Basavanagudi", accidents: 543, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "R.T. Nagar", accidents: 527, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Madiwala", accidents: 526, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Malleshwaram", accidents: 522, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Halasur", accidents: 505, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Sadashivanagar", accidents: 474, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Wilson Garden", accidents: 418, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "High Ground", accidents: 388, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Halaguru Gate", accidents: 362, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Cubbon Park", accidents: 338, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Ashok Nagar", accidents: 336, zone: "Traffic West", subdivision: "Central Sub Division" },
+            { name: "Adugodi", accidents: 331, zone: "Traffic South", subdivision: "South East Sub Division" },
+            { name: "Chicket", accidents: 328, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Thalagattapura", accidents: 295, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "Hennuru", accidents: 274, zone: "Traffic North", subdivision: "North East Sub Division" },
+            { name: "Magadevapura", accidents: 272, zone: "Traffic East", subdivision: "White Field Sub Division" },
+            { name: "Magadi Road", accidents: 258, zone: "Traffic West", subdivision: "Vijayanagar Sub Division" },
+            { name: "Upparpet", accidents: 255, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "V.V.Puram", accidents: 246, zone: "Traffic South", subdivision: "South Sub Division" },
+            { name: "K.G. Halli", accidents: 244, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Jnanabharathi", accidents: 206, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Shivajinagar", accidents: 175, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "City Market", accidents: 161, zone: "Traffic West", subdivision: "West Sub Division" },
+            { name: "Pulikeshingar", accidents: 153, zone: "Traffic East", subdivision: "East Sub Division" },
+            { name: "Bellandur", accidents: 140, zone: "Traffic South", subdivision: "HSR Layout Sub Division" },
+            { name: "Chikkabanavara", accidents: 140, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "Sanjayanagar", accidents: 44, zone: "Traffic North", subdivision: "North Sub Division" },
+            { name: "J.P. Nagar", accidents: 13, zone: "Traffic South", subdivision: "South Sub Division" }
+        ];
+
+        // Get risk level and styling
+        function getRiskInfo(accidents) {
+            if (accidents >= 1200) return { level: 'Critical', class: 'risk-critical', color: '#dc2626', bgColor: 'bg-red-50' };
+            if (accidents >= 800) return { level: 'High', class: 'risk-high', color: '#ea580c', bgColor: 'bg-orange-50' };
+            if (accidents >= 400) return { level: 'Medium', class: 'risk-medium', color: '#f59e0b', bgColor: 'bg-yellow-50' };
+            if (accidents >= 100) return { level: 'Low', class: 'risk-low', color: '#10b981', bgColor: 'bg-green-50' };
+            return { level: 'Very Low', class: 'risk-very-low', color: '#22c55e', bgColor: 'bg-green-50' };
+        }
+
+        // Create station card
+        function createStationCard(station) {
+            const risk = getRiskInfo(station.accidents);
+            return `
+                <div class="station-card bg-white rounded-xl shadow-lg border border-gray-200 p-6 cursor-pointer ${risk.class}" 
+                     onclick="showDetails('${station.name}')">
+                    <div class="flex items-start justify-between mb-3">
+                        <h3 class="text-lg font-bold text-gray-800">${station.name}</h3>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${risk.bgColor}" style="color: ${risk.color}">
+                            ${risk.level}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Accidents</span>
+                            <span class="text-xl font-bold" style="color: ${risk.color}">${station.accidents.toLocaleString()}</span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Zone</span>
+                            <span class="text-sm font-medium text-gray-800">${station.zone}</span>
+                        </div>
+                        
+                        <div class="text-xs text-gray-500 mt-3">
+                            ${station.subdivision}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-t border-gray-200">
+                        <span class="text-xs text-blue-600 font-medium">Click for details →</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Filter and sort stations
+        function filterAndSortStations() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const zoneFilter = document.getElementById('zoneFilter').value;
+            const sortBy = document.getElementById('sortSelect').value;
+
+            let filteredStations = stationsData.filter(station => {
+                const matchesSearch = station.name.toLowerCase().includes(searchTerm);
+                const matchesZone = zoneFilter === 'all' || station.zone === zoneFilter;
+                return matchesSearch && matchesZone;
+            });
+
+            // Sort stations
+            switch (sortBy) {
+                case 'accidents-desc':
+                    filteredStations.sort((a, b) => b.accidents - a.accidents);
+                    break;
+                case 'accidents-asc':
+                    filteredStations.sort((a, b) => a.accidents - b.accidents);
+                    break;
+                case 'name-asc':
+                    filteredStations.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'zone-asc':
+                    filteredStations.sort((a, b) => a.zone.localeCompare(b.zone));
+                    break;
+            }
+
+            return filteredStations;
+        }
+
+        // Render stations
+        function renderStations() {
+            const filteredStations = filterAndSortStations();
+            const grid = document.getElementById('stationsGrid');
+            
+            if (filteredStations.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="text-gray-400 mb-4">
+                            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m6-16v16a2 2 0 01-2 2H4a2 2 0 01-2-2V0h16z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-700 mb-2">No stations found</h3>
+                        <p class="text-gray-500">Try adjusting your search or filter criteria</p>
+                    </div>
+                `;
+            } else {
+                grid.innerHTML = filteredStations.map(createStationCard).join('');
+            }
+        }
+
+        // Show detailed view
+        function showDetails(stationName) {
+            const station = stationsData.find(s => s.name === stationName);
+            if (!station) return;
+
+            const risk = getRiskInfo(station.accidents);
+            const modal = document.getElementById('detailModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            title.textContent = station.name + ' Police Station';
+            
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">Accident Statistics</h4>
+                            <div class="text-3xl font-bold mb-1" style="color: ${risk.color}">${station.accidents.toLocaleString()}</div>
+                            <div class="text-sm text-gray-600">Total accidents recorded</div>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">Risk Assessment</h4>
+                            <div class="text-xl font-bold mb-1" style="color: ${risk.color}">${risk.level} Risk</div>
+                            <div class="text-sm text-gray-600">Based on accident frequency</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">Administrative Details</h4>
+                            <div class="space-y-2 text-sm">
+                                <div><strong>Traffic Zone:</strong> ${station.zone}</div>
+                                <div><strong>Sub Division:</strong> ${station.subdivision}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">Safety Recommendations</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                ${station.accidents >= 1000 ? 
+                                    '<li>• Immediate traffic enforcement required</li><li>• Deploy additional patrol units</li><li>• Install speed monitoring systems</li>' :
+                                    station.accidents >= 500 ?
+                                    '<li>• Increased monitoring recommended</li><li>• Review traffic signal timing</li><li>• Community awareness programs</li>' :
+                                    '<li>• Maintain current safety measures</li><li>• Regular patrol monitoring</li>'
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-sm text-yellow-800">
+                            <strong>Note:</strong> Data represents total accident cases registered. 
+                            For emergency assistance, contact Bengaluru Traffic Police at 103.
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', renderStations);
+        document.getElementById('zoneFilter').addEventListener('change', renderStations);
+        document.getElementById('sortSelect').addEventListener('change', renderStations);
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Initial render
+        renderStations();
+
+        console.log('Bengaluru Traffic Police Dashboard loaded successfully!');
+    </script>
+</body>
+</html>
